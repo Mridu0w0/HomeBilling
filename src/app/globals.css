@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@heroui/styles"; 
 
 :root {
   --background: #ffffff;
@@ -17,6 +18,13 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
 }
 
 body {
