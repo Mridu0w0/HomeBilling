@@ -2,13 +2,15 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -19,18 +21,15 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // Background sync helper so Firestore never blocks the auth session
   const syncProfile = async (firebaseUser) => {
     if (!firebaseUser) return;
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        setUserData(userSnap.data());
-      } else {
-        const defaultProfile = {
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        const profileData = {
           uid: firebaseUser.uid,
           name: firebaseUser.displayName || "Owner",
           email: firebaseUser.email,
@@ -38,12 +37,13 @@ export const AuthProvider = ({ children }) => {
           role: "owner",
           createdAt: new Date().toISOString(),
         };
-        await setDoc(userRef, defaultProfile);
-        setUserData(defaultProfile);
+        await setDoc(userRef, profileData);
+        setUserData(profileData);
+      } else {
+        setUserData(userDoc.data());
       }
     } catch (err) {
-      console.warn("Firestore profile background sync warning:", err);
-      // Fallback so the user is never locked out
+      console.warn("Profile sync error:", err);
       setUserData({
         uid: firebaseUser.uid,
         name: firebaseUser.displayName || "Owner",
@@ -55,12 +55,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // 1. Process Google sign-in after redirecting back
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await syncProfile(result.user);
+          router.replace("/dashboard");
+        }
+      })
+      .catch((err) => {
+        console.error("Redirect auth error:", err);
+      });
+
+    // 2. Track persistent session
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      // 1. Immediately acknowledge the authenticated user
       setUser(currentUser);
       setLoading(false);
-
-      // 2. Fetch or create Firestore profile in the background
       if (currentUser) {
         syncProfile(currentUser);
       } else {
@@ -69,7 +79,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
   const register = async (
     email,
@@ -91,7 +101,7 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, "users", cred.user.uid), profile);
       setUserData(profile);
     } catch (e) {
-      console.warn("Could not write profile during registration:", e);
+      console.warn("Could not save initial profile:", e);
     }
     return cred;
   };
@@ -100,18 +110,10 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-
-    // Call signInWithPopup immediately
-    const cred = await signInWithPopup(auth, provider);
-
-    // Background profile sync runs only AFTER the popup resolves
-    if (cred?.user) {
-      syncProfile(cred.user);
-    }
-    return cred.user;
+    return signInWithRedirect(auth, provider);
   };
 
   const logout = () => {
