@@ -37,7 +37,6 @@ export default function LoginPage() {
       setError(err?.message || "Google login failed");
     }
   };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-zinc-100">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl backdrop-blur-sm">
