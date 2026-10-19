@@ -14,7 +14,7 @@ export default function LoginPage() {
   const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
   const router = useRouter();
 
-  // Watch for active authentication and navigate immediately
+  // Redirect automatically once logged in
   useEffect(() => {
     if (!authLoading && user) {
       router.replace("/dashboard");
@@ -36,31 +36,18 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setError("");
     try {
-      // Must be invoked directly synchronously inside the user click
-      const loggedUser = await loginWithGoogle();
-      if (loggedUser) {
-        router.replace("/dashboard");
-      }
+      loginWithGoogle();
     } catch (err) {
-      if (err?.code === "auth/popup-blocked") {
-        setError(
-          "Browser blocked the popup window. Please allow popups for this site or try again.",
-        );
-      } else {
-        setError(err?.message || "Google sign-in failed.");
-      }
-    } finally {
-      setLoading(false);
+      setError(err?.message || "Google sign-in failed.");
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-zinc-100">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl backdrop-blur-sm">
-        {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Owner Login
@@ -70,19 +57,16 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Error Alert */}
         {error && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
             {error}
           </div>
         )}
 
-        {/* Google Sign-in */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={loading || authLoading}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99] disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99]"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -102,10 +86,9 @@ export default function LoginPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          {loading ? "Connecting..." : "Continue with Google"}
+          Continue with Google
         </button>
 
-        {/* Divider */}
         <div className="relative my-6 flex items-center justify-center">
           <div className="w-full border-t border-zinc-800"></div>
           <span className="absolute bg-zinc-900 px-3 text-xs uppercase text-zinc-500">
@@ -113,7 +96,6 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-300">
@@ -145,7 +127,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || authLoading}
+            disabled={loading}
             className="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign In"}
