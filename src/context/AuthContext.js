@@ -74,15 +74,14 @@ export const AuthProvider = ({ children }) => {
   // 3. Continue with Google
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
     const result = await signInWithPopup(auth, provider);
     const loggedUser = result.user;
 
     // Check if user already exists in Firestore
     const userDoc = await getDoc(doc(db, "users", loggedUser.uid));
     if (!userDoc.exists()) {
-      // In src/context/AuthContext.js:
-      // Find loginWithGoogle and update profileData to:
-
       const profileData = {
         uid: loggedUser.uid,
         name: loggedUser.displayName || "Owner",
@@ -91,7 +90,6 @@ export const AuthProvider = ({ children }) => {
         role: "owner",
         createdAt: new Date().toISOString(),
       };
-
       await setDoc(doc(db, "users", loggedUser.uid), profileData);
       setUserData(profileData);
     } else {

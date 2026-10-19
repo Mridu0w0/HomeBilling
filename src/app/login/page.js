@@ -31,13 +31,20 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError("");
-    setLoading(true);
     try {
-      await loginWithGoogle();
-      router.push("/dashboard");
+      const res = await loginWithGoogle();
+      if (res) {
+        setLoading(true);
+        router.push("/dashboard");
+      }
     } catch (err) {
-      setError(err.message || "Google login failed");
-    } finally {
+      if (err?.code === "auth/popup-blocked") {
+        setError(
+          "Browser blocked the Google sign-in pop-up. Please allow pop-ups for this site.",
+        );
+      } else {
+        setError(err?.message || "Google login failed");
+      }
       setLoading(false);
     }
   };
