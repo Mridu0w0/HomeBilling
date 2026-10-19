@@ -103,7 +103,11 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
+
+    // Call signInWithPopup immediately
     const cred = await signInWithPopup(auth, provider);
+
+    // Background profile sync runs only AFTER the popup resolves
     if (cred?.user) {
       syncProfile(cred.user);
     }

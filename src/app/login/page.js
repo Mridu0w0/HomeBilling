@@ -38,16 +38,21 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError("");
-    setLoading(true);
     try {
-      const res = await loginWithGoogle();
-      // If popup was used and returned a user directly
-      if (res) {
+      // Must be invoked directly synchronously inside the user click
+      const loggedUser = await loginWithGoogle();
+      if (loggedUser) {
         router.replace("/dashboard");
       }
     } catch (err) {
-      console.error(err);
-      setError(err?.message || "Google sign-in failed.");
+      if (err?.code === "auth/popup-blocked") {
+        setError(
+          "Browser blocked the popup window. Please allow popups for this site or try again.",
+        );
+      } else {
+        setError(err?.message || "Google sign-in failed.");
+      }
+    } finally {
       setLoading(false);
     }
   };
