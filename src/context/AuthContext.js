@@ -8,7 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -20,11 +21,48 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to ensure user document exists in Firestore
+  const syncUserToFirestore = async (loggedUser) => {
+    try {
+      const userRef = doc(db, "users", loggedUser.uid);
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        const profileData = {
+          uid: loggedUser.uid,
+          name: loggedUser.displayName || "Owner",
+          email: loggedUser.email,
+          flatNumber: "Owner Unit",
+          role: "owner",
+          createdAt: new Date().toISOString(),
+        };
+        await setDoc(userRef, profileData);
+        setUserData(profileData);
+      } else {
+        setUserData(userDoc.data());
+      }
+    } catch (err) {
+      console.error("Firestore sync error:", err);
+    }
+  };
+
   useEffect(() => {
+    // Check redirect result on page load (after returning from Google)
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await syncUserToFirestore(result.user);
+        }
+      })
+      .catch((err) => {
+        console.error("Redirect sign-in error:", err);
+      });
+
+    // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        const userRef = doc(db, "users", currentUser.uid);
+        const userDoc = await getDoc(userRef);
         if (userDoc.exists()) {
           setUserData(userDoc.data());
         }
@@ -37,13 +75,12 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // 1. Email/Password Registration
   const register = async (
     email,
     password,
     name,
     flatNumber,
-    role = "member",
+    role = "owner",
   ) => {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -66,37 +103,15 @@ export const AuthProvider = ({ children }) => {
     return userCredential;
   };
 
-  // 2. Email/Password Login
   const login = (email, password) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  // 3. Continue with Google
+  // Uses full-page redirect so it never triggers browser popup blocks
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-
-    const result = await signInWithPopup(auth, provider);
-    const loggedUser = result.user;
-
-    // Check if user already exists in Firestore
-    const userDoc = await getDoc(doc(db, "users", loggedUser.uid));
-    if (!userDoc.exists()) {
-      const profileData = {
-        uid: loggedUser.uid,
-        name: loggedUser.displayName || "Owner",
-        email: loggedUser.email,
-        flatNumber: "Owner Unit",
-        role: "owner",
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, "users", loggedUser.uid), profileData);
-      setUserData(profileData);
-    } else {
-      setUserData(userDoc.data());
-    }
-
-    return result;
+    return signInWithRedirect(auth, provider);
   };
 
   const logout = () => {

@@ -32,20 +32,9 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     try {
-      const res = await loginWithGoogle();
-      if (res) {
-        setLoading(true);
-        router.push("/dashboard");
-      }
+      await loginWithGoogle();
     } catch (err) {
-      if (err?.code === "auth/popup-blocked") {
-        setError(
-          "Browser blocked the Google sign-in pop-up. Please allow pop-ups for this site.",
-        );
-      } else {
-        setError(err?.message || "Google login failed");
-      }
-      setLoading(false);
+      setError(err?.message || "Google login failed");
     }
   };
 
