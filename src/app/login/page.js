@@ -1,7 +1,7 @@
 // src/app/login/page.js
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -11,8 +11,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
   const router = useRouter();
+
+  // Watch for active authentication and navigate immediately
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,7 +28,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       setError("Invalid email or password.");
     } finally {
@@ -31,12 +38,20 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError("");
+    setLoading(true);
     try {
-      await loginWithGoogle();
+      const res = await loginWithGoogle();
+      // If popup was used and returned a user directly
+      if (res) {
+        router.replace("/dashboard");
+      }
     } catch (err) {
-      setError(err?.message || "Google login failed");
+      console.error(err);
+      setError(err?.message || "Google sign-in failed.");
+      setLoading(false);
     }
   };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-zinc-100">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl backdrop-blur-sm">
@@ -61,7 +76,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || authLoading}
           className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99] disabled:opacity-50"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -82,7 +97,7 @@ export default function LoginPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          Continue with Google
+          {loading ? "Connecting..." : "Continue with Google"}
         </button>
 
         {/* Divider */}
@@ -125,7 +140,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || authLoading}
             className="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign In"}

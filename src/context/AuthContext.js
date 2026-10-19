@@ -8,8 +8,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -21,55 +20,52 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper to ensure user document exists in Firestore
-  const syncUserToFirestore = async (loggedUser) => {
+  // Background sync helper so Firestore never blocks the auth session
+  const syncProfile = async (firebaseUser) => {
+    if (!firebaseUser) return;
     try {
-      const userRef = doc(db, "users", loggedUser.uid);
-      const userDoc = await getDoc(userRef);
-      if (!userDoc.exists()) {
-        const profileData = {
-          uid: loggedUser.uid,
-          name: loggedUser.displayName || "Owner",
-          email: loggedUser.email,
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        setUserData(userSnap.data());
+      } else {
+        const defaultProfile = {
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName || "Owner",
+          email: firebaseUser.email,
           flatNumber: "Owner Unit",
           role: "owner",
           createdAt: new Date().toISOString(),
         };
-        await setDoc(userRef, profileData);
-        setUserData(profileData);
-      } else {
-        setUserData(userDoc.data());
+        await setDoc(userRef, defaultProfile);
+        setUserData(defaultProfile);
       }
     } catch (err) {
-      console.error("Firestore sync error:", err);
+      console.warn("Firestore profile background sync warning:", err);
+      // Fallback so the user is never locked out
+      setUserData({
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName || "Owner",
+        email: firebaseUser.email,
+        flatNumber: "Owner Unit",
+        role: "owner",
+      });
     }
   };
 
   useEffect(() => {
-    // Check redirect result on page load (after returning from Google)
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result?.user) {
-          await syncUserToFirestore(result.user);
-        }
-      })
-      .catch((err) => {
-        console.error("Redirect sign-in error:", err);
-      });
-
-    // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      // 1. Immediately acknowledge the authenticated user
       setUser(currentUser);
+      setLoading(false);
+
+      // 2. Fetch or create Firestore profile in the background
       if (currentUser) {
-        const userRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        }
+        syncProfile(currentUser);
       } else {
         setUserData(null);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -82,39 +78,40 @@ export const AuthProvider = ({ children }) => {
     flatNumber,
     role = "owner",
   ) => {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password,
-    );
-    const uid = userCredential.user.uid;
-
-    const profileData = {
-      uid,
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const profile = {
+      uid: cred.user.uid,
       name,
       email,
       flatNumber,
       role,
       createdAt: new Date().toISOString(),
     };
-
-    await setDoc(doc(db, "users", uid), profileData);
-    setUserData(profileData);
-    return userCredential;
+    try {
+      await setDoc(doc(db, "users", cred.user.uid), profile);
+      setUserData(profile);
+    } catch (e) {
+      console.warn("Could not write profile during registration:", e);
+    }
+    return cred;
   };
 
   const login = (email, password) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  // Uses full-page redirect so it never triggers browser popup blocks
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    return signInWithRedirect(auth, provider);
+    const cred = await signInWithPopup(auth, provider);
+    if (cred?.user) {
+      syncProfile(cred.user);
+    }
+    return cred.user;
   };
 
   const logout = () => {
+    setUserData(null);
     return signOut(auth);
   };
 
