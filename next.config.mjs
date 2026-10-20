@@ -1,7 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  protocol: "https",
-  hostname: "lh3.googleusercontent.com",
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+    ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/__/auth/:path*",
+        destination: "https://homebilling-dbdef.firebaseapp.com/__/auth/:path*",
+      },
+    ];
+  },
   experimental: {
     agentFeedback: true,
   },

@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         setUserData(defaultProfile);
       }
     } catch (err) {
-      console.warn("Firestore sync warning:", err);
+      console.warn("Profile sync warning:", err);
       setUserData({
         uid: firebaseUser.uid,
         name: firebaseUser.displayName || "Owner",
@@ -54,20 +54,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // 1. Process Google redirect result when the page lands back
+    // 1. Check for incoming redirect session
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
           setUser(result.user);
           await syncProfile(result.user);
-          window.location.assign("/dashboard");
+          window.location.replace("/dashboard");
         }
       })
       .catch((err) => {
-        console.error("Redirect sign-in error:", err);
+        console.error("Redirect error:", err);
       });
 
-    // 2. Persistent auth listener
+    // 2. Auth listener
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -100,8 +100,8 @@ export const AuthProvider = ({ children }) => {
     try {
       await setDoc(doc(db, "users", cred.user.uid), profile);
       setUserData(profile);
-    } catch (e) {
-      console.warn("Could not write profile during registration:", e);
+    } catch (err) {
+      console.warn("Could not save initial profile:", err);
     }
     return cred;
   };
@@ -110,7 +110,6 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  // Full-page redirect without opening any popups
   const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
