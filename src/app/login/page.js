@@ -36,13 +36,19 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     try {
-      const res = await loginWithGoogle();
-      if (res?.user) {
+      // Direct synchronous execution keeps the browser's trusted user gesture
+      const result = await loginWithGoogle();
+      if (result) {
         window.location.assign("/dashboard");
       }
     } catch (err) {
-      console.error(err);
-      setError(err?.message || "Google sign-in failed.");
+      if (err?.code === "auth/popup-blocked") {
+        setError(
+          "Browser blocked the pop-up window. Please click the pop-up icon in your address bar to allow it.",
+        );
+      } else {
+        setError(err?.message || "Google sign-in failed.");
+      }
     }
   };
 
