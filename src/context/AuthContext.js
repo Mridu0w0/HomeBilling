@@ -8,9 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup,
-  setPersistence,
-  browserLocalPersistence,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -22,7 +21,6 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Background non-blocking profile sync
   const syncProfile = async (firebaseUser) => {
     if (!firebaseUser) return;
     try {
@@ -44,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         setUserData(defaultProfile);
       }
     } catch (err) {
-      console.warn("Firestore profile sync warning:", err);
+      console.warn("Firestore sync warning:", err);
       setUserData({
         uid: firebaseUser.uid,
         name: firebaseUser.displayName || "Owner",
@@ -56,13 +54,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Explicitly set persistent session storage
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
+    // 1. Process Google redirect result when the page lands back
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          setUser(result.user);
+          await syncProfile(result.user);
+          window.location.assign("/dashboard");
+        }
+      })
+      .catch((err) => {
+        console.error("Redirect sign-in error:", err);
+      });
 
+    // 2. Persistent auth listener
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
-
       if (currentUser) {
         syncProfile(currentUser);
       } else {
@@ -93,7 +101,7 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, "users", cred.user.uid), profile);
       setUserData(profile);
     } catch (e) {
-      console.warn("Could not save initial profile:", e);
+      console.warn("Could not write profile during registration:", e);
     }
     return cred;
   };
@@ -102,15 +110,11 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const loginWithGoogle = async () => {
+  // Full-page redirect without opening any popups
+  const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    const cred = await signInWithPopup(auth, provider);
-    if (cred?.user) {
-      setUser(cred.user);
-      syncProfile(cred.user);
-    }
-    return cred.user;
+    return signInWithRedirect(auth, provider);
   };
 
   const logout = () => {

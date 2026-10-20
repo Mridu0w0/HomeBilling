@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
 
   // If already logged in, navigate straight to dashboard
@@ -22,21 +22,20 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
       await login(email, password);
       window.location.assign("/dashboard");
     } catch (err) {
       setError("Invalid email or password.");
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = () => {
     setError("");
     try {
-      // Initiates redirect to Google's sign-in page
       loginWithGoogle();
     } catch (err) {
       setError(err?.message || "Google sign-in failed.");
@@ -61,6 +60,7 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* Google Sign-in */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
@@ -119,16 +119,16 @@ export default function LoginPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={loading}
             className="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50"
           >
-            {isSubmitting ? "Signing in..." : "Sign In"}
+            {loading ? "Signing in..." : "Sign In"}
           </button>
 
           <p className="mt-2 text-center text-xs text-zinc-400">
