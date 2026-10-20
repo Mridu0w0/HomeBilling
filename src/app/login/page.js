@@ -39,6 +39,7 @@ export default function LoginPage() {
       // Direct synchronous execution keeps the browser's trusted user gesture
       const result = await loginWithGoogle();
       if (result) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign("/dashboard");
       }
     } catch (err) {
