@@ -74,12 +74,13 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    setError("");
+  const handleGoogleSignUp = async () => {
     try {
-      loginWithGoogle();
-    } catch (err) {
-      setError(err?.message || "Google sign-up failed.");
+      const result = await loginWithGoogle();
+      console.log("Logged in user:", result.user);
+      // e.g., navigate("/") or save user to MongoDB
+    } catch (error) {
+      console.error("Google sign-in error:", error.message);
     }
   };
 

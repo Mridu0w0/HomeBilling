@@ -10,6 +10,7 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
+  signInWithPopup,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -114,7 +115,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    return signInWithRedirect(auth, provider);
+    return signInWithPopup(auth, provider);
   };
 
   const logout = () => {
