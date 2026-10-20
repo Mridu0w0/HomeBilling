@@ -18,13 +18,14 @@ export default function LoginPage() {
       window.location.assign("/dashboard");
     }
   }, [user, authLoading]);
+
   const handleGoogleSignIn = async () => {
     try {
-      const result = await loginWithGoogle();
-      console.log("Logged in user:", result.user);
-      // e.g., navigate("/") or save user to MongoDB
+      // Call loginWithGoogle() FIRST before any state updates or awaits
+      await loginWithGoogle();
+      router.push("/dashboard");
     } catch (error) {
-      console.error("Google sign-in error:", error.message);
+      console.error("Google sign-in error:", error);
     }
   };
 

@@ -8,8 +8,6 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
   signInWithPopup,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -17,19 +15,25 @@ import { auth, db } from "@/lib/firebase";
 
 const AuthContext = createContext({});
 
+// Pre-initialize outside the component so the popup opens instantaneously on click
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const syncProfile = async (firebaseUser) => {
-    if (!firebaseUser) return;
+    if (!firebaseUser) return null;
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        setUserData(userSnap.data());
+        const data = userSnap.data();
+        setUserData(data);
+        return data;
       } else {
         const defaultProfile = {
           uid: firebaseUser.uid,
@@ -41,42 +45,31 @@ export const AuthProvider = ({ children }) => {
         };
         await setDoc(userRef, defaultProfile);
         setUserData(defaultProfile);
+        return defaultProfile;
       }
     } catch (err) {
       console.warn("Profile sync warning:", err);
-      setUserData({
+      const fallbackProfile = {
         uid: firebaseUser.uid,
         name: firebaseUser.displayName || "Owner",
         email: firebaseUser.email,
         flatNumber: "Owner Unit",
         role: "owner",
-      });
+      };
+      setUserData(fallbackProfile);
+      return fallbackProfile;
     }
   };
 
   useEffect(() => {
-    // 1. Check for incoming redirect session
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result?.user) {
-          setUser(result.user);
-          await syncProfile(result.user);
-          window.location.replace("/dashboard");
-        }
-      })
-      .catch((err) => {
-        console.error("Redirect error:", err);
-      });
-
-    // 2. Auth listener
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
       if (currentUser) {
-        syncProfile(currentUser);
+        await syncProfile(currentUser);
       } else {
         setUserData(null);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -112,10 +105,13 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const loginWithGoogle = () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    return signInWithPopup(auth, provider);
+  // Must remain synchronous up until signInWithPopup is called!
+  const loginWithGoogle = async () => {
+    const result = await signInWithPopup(auth, googleProvider);
+    if (result?.user) {
+      await syncProfile(result.user);
+    }
+    return result;
   };
 
   const logout = () => {
