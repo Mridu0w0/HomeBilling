@@ -18,6 +18,15 @@ export default function LoginPage() {
       window.location.assign("/dashboard");
     }
   }, [user, authLoading]);
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await loginWithGoogle();
+      console.log("Logged in user:", result.user);
+      // e.g., navigate("/") or save user to MongoDB
+    } catch (error) {
+      console.error("Google sign-in error:", error.message);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,16 +39,6 @@ export default function LoginPage() {
     } catch (err) {
       setError("Invalid email or password.");
       setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      const result = await loginWithGoogle();
-      console.log("Logged in user:", result.user);
-      // e.g., navigate("/") or save user to MongoDB
-    } catch (error) {
-      console.error("Google sign-in error:", error.message);
     }
   };
 
