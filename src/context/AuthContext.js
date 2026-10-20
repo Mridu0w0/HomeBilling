@@ -8,9 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup,
-  setPersistence,
-  browserLocalPersistence,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -22,20 +21,20 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Background safe sync to Firestore
-  const syncProfile = async (firebaseUser) => {
-    if (!firebaseUser) return;
+  // Background profile sync
+  const syncProfile = async (currentUser) => {
+    if (!currentUser) return;
     try {
-      const userRef = doc(db, "users", firebaseUser.uid);
+      const userRef = doc(db, "users", currentUser.uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
         setUserData(userSnap.data());
       } else {
         const defaultProfile = {
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || "Owner",
-          email: firebaseUser.email,
+          uid: currentUser.uid,
+          name: currentUser.displayName || "Owner",
+          email: currentUser.email,
           flatNumber: "Owner Unit",
           role: "owner",
           createdAt: new Date().toISOString(),
@@ -44,12 +43,11 @@ export const AuthProvider = ({ children }) => {
         setUserData(defaultProfile);
       }
     } catch (err) {
-      console.warn("Firestore profile sync skipped:", err);
-      // Fallback object so userData is populated regardless of Firestore state
+      console.warn("Profile sync warning:", err);
       setUserData({
-        uid: firebaseUser.uid,
-        name: firebaseUser.displayName || "Owner",
-        email: firebaseUser.email,
+        uid: currentUser.uid,
+        name: currentUser.displayName || "Owner",
+        email: currentUser.email,
         flatNumber: "Owner Unit",
         role: "owner",
       });
@@ -57,17 +55,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Explicitly enforce local persistence in browser storage
-    setPersistence(auth, browserLocalPersistence).catch((err) => {
-      console.error("Persistence error:", err);
-    });
+    // 1. Process Google sign-in redirect result when the page loads back
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          setUser(result.user);
+          await syncProfile(result.user);
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.assign("/dashboard");
+        }
+      })
+      .catch((err) => {
+        console.error("Redirect sign-in error:", err);
+      });
 
+    // 2. Persistent auth state listener
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      // 1. Immediately store the authenticated user
       setUser(currentUser);
       setLoading(false);
-
-      // 2. Sync profile in the background without blocking the UI
       if (currentUser) {
         syncProfile(currentUser);
       } else {
@@ -98,7 +103,7 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, "users", cred.user.uid), profile);
       setUserData(profile);
     } catch (err) {
-      console.warn("Could not write profile during registration:", err);
+      console.warn("Could not save initial profile:", err);
     }
     return cred;
   };
@@ -107,11 +112,11 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
+  // Full-page redirect: completely bypasses the browser popup engine
   const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    // Must call signInWithPopup immediately
-    return signInWithPopup(auth, provider);
+    return signInWithRedirect(auth, provider);
   };
 
   const logout = () => {

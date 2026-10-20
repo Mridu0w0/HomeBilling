@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
 
-  // Redirect automatically when an active user session is detected
+  // If already logged in, navigate straight to dashboard
   useEffect(() => {
     if (!authLoading && user) {
       window.location.assign("/dashboard");
@@ -33,23 +33,13 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setError("");
     try {
-      // Direct synchronous execution keeps the browser's trusted user gesture
-      const result = await loginWithGoogle();
-      if (result) {
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.assign("/dashboard");
-      }
+      // Initiates redirect to Google's sign-in page
+      loginWithGoogle();
     } catch (err) {
-      if (err?.code === "auth/popup-blocked") {
-        setError(
-          "Browser blocked the pop-up window. Please click the pop-up icon in your address bar to allow it.",
-        );
-      } else {
-        setError(err?.message || "Google sign-in failed.");
-      }
+      setError(err?.message || "Google sign-in failed.");
     }
   };
 
