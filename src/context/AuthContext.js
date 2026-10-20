@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       uid: cred.user.uid,
       name,
       email,
-      flatNumber,
+      flatNumber: flatNumber || "Owner Unit",
       role,
       createdAt: new Date().toISOString(),
     };
@@ -101,7 +101,8 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, "users", cred.user.uid), profile);
       setUserData(profile);
     } catch (err) {
-      console.warn("Could not save initial profile:", err);
+      console.warn("Could not save profile to firestore immediately:", err);
+      setUserData(profile);
     }
     return cred;
   };

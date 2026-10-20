@@ -1,48 +1,85 @@
-// src/app/login/page.js
+// src/app/register/page.js
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function RegisterPage() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    flatNumber: "",
+    password: "",
+  });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user, loading: authLoading, register, loginWithGoogle } = useAuth();
 
-  // If already authenticated, redirect straight to dashboard
+  // If already logged in, navigate straight to dashboard
   useEffect(() => {
     if (!authLoading && user) {
-      window.location.href = "/dashboard";
+      window.location.assign("/dashboard");
     }
   }, [user, authLoading]);
 
-  const handleLogin = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+
+    if (
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.password.trim()
+    ) {
+      setError("Please complete all required fields.");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
-      await login(email, password);
-      window.location.href = "/dashboard";
+      const res = await register(
+        formData.email.trim(),
+        formData.password,
+        formData.name.trim(),
+        formData.flatNumber.trim() || "Owner Unit",
+      );
+
+      if (res?.user) {
+        window.location.assign("/dashboard");
+      }
     } catch (err) {
-      setError("Invalid email or password.");
-      setLoading(false);
+      console.error("Registration failed:", err);
+      if (err?.code === "auth/email-already-in-use") {
+        setError(
+          "This email address is already registered. Please sign in instead.",
+        );
+      } else if (err?.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
+      } else if (err?.code === "auth/weak-password") {
+        setError("Password is too weak. Please use at least 6 characters.");
+      } else {
+        setError(
+          err?.message || "Failed to create account. Please check connection.",
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = () => {
     setError("");
     try {
-      const loggedUser = await loginWithGoogle();
-      if (loggedUser) {
-        window.location.href = "/dashboard";
-      }
+      loginWithGoogle();
     } catch (err) {
-      console.error(err);
-      setError(err?.message || "Google sign-in failed.");
+      setError(err?.message || "Google sign-up failed.");
     }
   };
 
@@ -51,10 +88,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl backdrop-blur-sm">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            Owner Login
+            Owner Registration
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Sign in to check and manage monthly dues
+            Join to track shared building expenses & dues
           </p>
         </div>
 
@@ -64,9 +101,10 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* Google Sign-in */}
         <button
           type="button"
-          onClick={handleGoogleSignIn}
+          onClick={handleGoogleSignUp}
           className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99]"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -97,7 +135,24 @@ export default function LoginPage() {
           </span>
         </div>
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        {/* Registration Form */}
+        <form onSubmit={handleRegister} className="flex flex-col gap-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-300">
+              Full Name
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. John Doe"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-300">
               Email Address
@@ -106,8 +161,25 @@ export default function LoginPage() {
               type="email"
               required
               placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-300">
+              Flat / Unit Number
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Flat 4B"
+              value={formData.flatNumber}
+              onChange={(e) =>
+                setFormData({ ...formData, flatNumber: e.target.value })
+              }
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -119,28 +191,30 @@ export default function LoginPage() {
             <input
               type="password"
               required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
+              placeholder="At least 6 characters"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50"
+            disabled={isSubmitting}
+            className="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50 transition-all"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {isSubmitting ? "Creating account..." : "Create Account"}
           </button>
 
           <p className="mt-2 text-center text-xs text-zinc-400">
-            Don&apos;t have an account?{" "}
+            Already have an account?{" "}
             <Link
-              href="/register"
+              href="/login"
               className="font-medium text-blue-400 hover:text-blue-300"
             >
-              Create one
+              Sign In
             </Link>
           </p>
         </form>
