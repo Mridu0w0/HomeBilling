@@ -1,82 +1,73 @@
-// src/app/register/page.js
+// src/app/login/page.js
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    flatNumber: "",
-    password: "",
-  });
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { register, loginWithGoogle } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
 
-  const handleRegister = async (e) => {
+  // If already authenticated, redirect straight to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      window.location.href = "/dashboard";
+    }
+  }, [user, authLoading]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      await register(
-        formData.email,
-        formData.password,
-        formData.name,
-        formData.flatNumber,
-      );
-      router.push("/dashboard");
+      await login(email, password);
+      window.location.href = "/dashboard";
     } catch (err) {
-      setError(err.message || "Failed to create account");
-    } finally {
+      setError("Invalid email or password.");
       setLoading(false);
     }
   };
 
-  const handleGoogleSignUp = async () => {
+  const handleGoogleSignIn = async () => {
     setError("");
-    setLoading(true);
     try {
-      await loginWithGoogle();
-      router.push("/dashboard");
+      const loggedUser = await loginWithGoogle();
+      if (loggedUser) {
+        window.location.href = "/dashboard";
+      }
     } catch (err) {
-      setError(err.message || "Google sign-up failed");
-    } finally {
-      setLoading(false);
+      console.error(err);
+      setError(err?.message || "Google sign-in failed.");
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-zinc-100">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl backdrop-blur-sm">
-        {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            Owner Registration
+            Owner Login
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Join to track shared building expenses & dues
+            Sign in to check and manage monthly dues
           </p>
         </div>
 
-        {/* Error Alert */}
         {error && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
             {error}
           </div>
         )}
 
-        {/* Google Sign-in */}
         <button
           type="button"
-          onClick={handleGoogleSignUp}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99] disabled:opacity-50"
+          onClick={handleGoogleSignIn}
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99]"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -99,7 +90,6 @@ export default function RegisterPage() {
           Continue with Google
         </button>
 
-        {/* Divider */}
         <div className="relative my-6 flex items-center justify-center">
           <div className="w-full border-t border-zinc-800"></div>
           <span className="absolute bg-zinc-900 px-3 text-xs uppercase text-zinc-500">
@@ -107,24 +97,7 @@ export default function RegisterPage() {
           </span>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleRegister} className="flex flex-col gap-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-300">
-              Full Name
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. John Doe"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-300">
               Email Address
@@ -133,26 +106,8 @@ export default function RegisterPage() {
               type="email"
               required
               placeholder="name@example.com"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-300">
-              Flat / Unit Number
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Flat 4B"
-              value={formData.flatNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, flatNumber: e.target.value })
-              }
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -165,11 +120,9 @@ export default function RegisterPage() {
               type="password"
               required
               placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
 
@@ -178,16 +131,16 @@ export default function RegisterPage() {
             disabled={loading}
             className="mt-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create Account"}
+            {loading ? "Signing in..." : "Sign In"}
           </button>
 
           <p className="mt-2 text-center text-xs text-zinc-400">
-            Already have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
-              href="/login"
+              href="/register"
               className="font-medium text-blue-400 hover:text-blue-300"
             >
-              Sign In
+              Create one
             </Link>
           </p>
         </form>
