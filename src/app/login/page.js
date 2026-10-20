@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
@@ -12,14 +11,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
-  const router = useRouter();
 
-  // Redirect to dashboard as soon as auth resolves
+  // Redirect automatically when an active user session is detected
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace("/dashboard");
+      window.location.assign("/dashboard");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -28,10 +26,9 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.replace("/dashboard");
+      window.location.assign("/dashboard");
     } catch (err) {
       setError("Invalid email or password.");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -39,10 +36,13 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     try {
-      // Direct invocation preserves browser gesture trust
-      await loginWithGoogle();
+      const res = await loginWithGoogle();
+      if (res?.user) {
+        window.location.assign("/dashboard");
+      }
     } catch (err) {
-      setError(err?.message || "Google sign-in failed");
+      console.error(err);
+      setError(err?.message || "Google sign-in failed.");
     }
   };
 
