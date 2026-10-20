@@ -11,12 +11,13 @@ import { FaHome } from "react-icons/fa";
 
 export default function Navbar() {
   const { user, userData, logout } = useAuth();
+
   const pathname = usePathname();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   const dropdownRef = useRef(null);
-
+  console.log("Navbar render: userData:", userData, "user:", user);
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setIsDropdownOpen(false);
