@@ -1,7 +1,7 @@
 // src/app/login/page.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -11,15 +11,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
-
-  // Redirect automatically once logged in
-  useEffect(() => {
-    if (!authLoading && user) {
-      router.replace("/dashboard");
-    }
-  }, [user, authLoading, router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -28,7 +21,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.replace("/dashboard");
+      router.push("/dashboard");
     } catch (err) {
       setError("Invalid email or password.");
     } finally {
@@ -36,18 +29,23 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setError("");
+    setLoading(true);
     try {
-      loginWithGoogle();
+      await loginWithGoogle();
+      router.push("/dashboard");
     } catch (err) {
-      setError(err?.message || "Google sign-in failed.");
+      setError(err.message || "Google login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-zinc-100">
       <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl backdrop-blur-sm">
+        {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Owner Login
@@ -57,16 +55,19 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Error Alert */}
         {error && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
             {error}
           </div>
         )}
 
+        {/* Google Sign-in */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99]"
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99] disabled:opacity-50"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -89,6 +90,7 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
+        {/* Divider */}
         <div className="relative my-6 flex items-center justify-center">
           <div className="w-full border-t border-zinc-800"></div>
           <span className="absolute bg-zinc-900 px-3 text-xs uppercase text-zinc-500">
@@ -96,6 +98,7 @@ export default function LoginPage() {
           </span>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-300">

@@ -40,10 +40,14 @@ export default function RegisterPage() {
 
   const handleGoogleSignUp = async () => {
     setError("");
+    setLoading(true);
     try {
       await loginWithGoogle();
+      router.push("/dashboard");
     } catch (err) {
-      setError(err?.message || "Google sign-up failed");
+      setError(err.message || "Google sign-up failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -103,7 +107,7 @@ export default function RegisterPage() {
           </span>
         </div>
 
-        {/* Email/Password Form */}
+        {/* Form */}
         <form onSubmit={handleRegister} className="flex flex-col gap-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-300">
