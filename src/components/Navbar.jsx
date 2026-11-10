@@ -17,7 +17,7 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   const dropdownRef = useRef(null);
-  console.log("Navbar render: userData:", userData, "user:", user);
+  // console.log("Navbar render: userData:", userData, "user:", user);
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setIsDropdownOpen(false);

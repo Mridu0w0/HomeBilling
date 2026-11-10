@@ -16,7 +16,8 @@ import {
 
 export default function PaymentTracker({
   currentMonth,
-  owners,
+
+  owners = [],
   sharePerOwner,
   currentUser,
   isAdmin = false,
@@ -207,7 +208,7 @@ export default function PaymentTracker({
         </span>
       </div>
 
-      {owners.length === 0 ? (
+      {!owners || owners.length === 0 ? (
         <div className="py-6 text-center text-xs text-zinc-500">
           No registered owners found.
         </div>
