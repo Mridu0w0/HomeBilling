@@ -2,16 +2,26 @@
 "use client";
 
 export default function StatementPrint({
-  selectedMonth,
-  expenses,
-  totalAmount,
-  effectiveOwnerCount,
-  sharePerOwner,
-  owners,
+  selectedMonth = "All Bills",
+  bills = [],
+  expenses = [],
+  totalAmount = 0,
+  owners = [],
 }) {
   const handlePrint = () => {
     window.print();
   };
+
+  // Use `bills` if passed, otherwise fall back to `expenses`
+  const billItems = bills.length > 0 ? bills : expenses;
+
+  // Calculate total units across all registered owners
+  const totalBuildingUnits =
+    owners.reduce((sum, o) => sum + (Number(o.units) || 1), 0) || 1;
+
+  // Calculate overall rate per unit
+  const totalRatePerUnit =
+    totalBuildingUnits > 0 ? totalAmount / totalBuildingUnits : 0;
 
   return (
     <>
@@ -19,7 +29,7 @@ export default function StatementPrint({
       <button
         type="button"
         onClick={handlePrint}
-        className="print:hidden inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition-colors"
+        className="print:hidden inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition-colors"
         title="Export or print statement"
       >
         <svg
@@ -47,7 +57,7 @@ export default function StatementPrint({
               HomeBilling Statement
             </h1>
             <p className="text-sm text-gray-600">
-              Shared Building Utility & Maintenance Report
+              Unit-Based Building Utility & Maintenance Report
             </p>
           </div>
           <div className="text-right">
@@ -65,83 +75,136 @@ export default function StatementPrint({
               Total Building Cost
             </p>
             <p className="text-xl font-bold">
-              ৳ {totalAmount.toLocaleString()}
+              $
+              {Number(totalAmount).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </p>
           </div>
           <div>
             <p className="text-xs text-gray-500 uppercase font-semibold">
-              Total Active Units
+              Registered Ownership
             </p>
-            <p className="text-xl font-bold">{effectiveOwnerCount} Owners</p>
+            <p className="text-xl font-bold">
+              {owners.length} Owners ({totalBuildingUnits} Units)
+            </p>
           </div>
           <div>
             <p className="text-xs text-gray-500 uppercase font-semibold">
-              Individual Share
+              Base Rate Per Unit
             </p>
-            <p className="text-xl font-bold text-blue-700">৳ {sharePerOwner}</p>
+            <p className="text-xl font-bold text-blue-700">
+              ${totalRatePerUnit.toFixed(2)} / unit
+            </p>
           </div>
         </div>
 
-        {/* Itemized Expenses Table */}
+        {/* 1. Itemized Bills Breakdown */}
         <div className="mb-6">
           <h2 className="text-sm font-bold uppercase tracking-wider mb-2 border-b pb-1 text-gray-700">
-            1. Itemized Expenses Breakdown
+            1. Itemized Bills Breakdown
           </h2>
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-gray-300 text-gray-600">
                 <th className="py-2">Billing Sector</th>
-                <th className="py-2">Description / Meter Details</th>
+                <th className="py-2">Bill Title</th>
+                <th className="py-2 text-center">Total Units</th>
                 <th className="py-2 text-right">Total Amount</th>
-                <th className="py-2 text-right">Share per Unit</th>
+                <th className="py-2 text-right">Rate / Unit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {expenses.map((item) => (
-                <tr key={item.id}>
-                  <td className="py-2 font-medium">
-                    {item.category} {item.isRecurring && "(Fixed Recurring)"}
-                  </td>
-                  <td className="py-2 text-gray-600">
-                    {item.note || "Standard Bill"}
-                  </td>
-                  <td className="py-2 text-right font-semibold">
-                    ৳ {item.amount.toLocaleString()}
-                  </td>
-                  <td className="py-2 text-right">
-                    ৳ {(item.amount / effectiveOwnerCount).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+              {billItems.map((item) => {
+                const amount = Number(item.totalAmount ?? item.amount ?? 0);
+                const units = Number(item.totalUnits || totalBuildingUnits);
+                const rate = Number(
+                  item.costPerUnit ?? (units > 0 ? amount / units : 0),
+                );
+
+                return (
+                  <tr key={item.id}>
+                    <td className="py-2 font-medium">
+                      {item.sector || item.category || "General"}
+                    </td>
+                    <td className="py-2 text-gray-600">
+                      {item.title || item.note || "Building Bill"}
+                    </td>
+                    <td className="py-2 text-center text-gray-600">{units}</td>
+                    <td className="py-2 text-right font-semibold">
+                      ${amount.toFixed(2)}
+                    </td>
+                    <td className="py-2 text-right">${rate.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        {/* Registered Owners Allocation */}
+        {/* 2. Unit-Based Owner Dues Schedule */}
         <div>
           <h2 className="text-sm font-bold uppercase tracking-wider mb-2 border-b pb-1 text-gray-700">
-            2. Owner Dues Schedule
+            2. Owner Unit Dues Schedule
           </h2>
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-gray-300 text-gray-600">
                 <th className="py-2">Flat / Unit</th>
                 <th className="py-2">Owner Name</th>
-                <th className="py-2 text-right">Allocated Share</th>
+                <th className="py-2 text-center">Units Owned</th>
+                <th className="py-2 text-right">Total Share</th>
+                <th className="py-2 text-right">Paid</th>
+                <th className="py-2 text-right">Balance Due</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {owners.map((owner) => (
-                <tr key={owner.id}>
-                  <td className="py-2 font-medium">
-                    {owner.flatNumber || "Unassigned"}
-                  </td>
-                  <td className="py-2">{owner.name || owner.email}</td>
-                  <td className="py-2 text-right font-semibold">
-                    ৳ {sharePerOwner}
-                  </td>
-                </tr>
-              ))}
+              {owners.map((owner) => {
+                const ownerUid = owner.uid || owner.id;
+                const ownerUnits = Number(owner.units || 1);
+
+                let ownerAllocated = 0;
+                let ownerPaid = 0;
+
+                if (bills.length > 0) {
+                  // Calculate exact share from the `splits` array of each bill
+                  bills.forEach((bill) => {
+                    const split = bill.splits?.find((s) => s.uid === ownerUid);
+                    if (split) {
+                      const share = Number(split.shareAmount) || 0;
+                      ownerAllocated += share;
+                      if (split.status === "paid") {
+                        ownerPaid += share;
+                      }
+                    }
+                  });
+                } else {
+                  // Fallback if `bills` prop wasn't passed yet
+                  ownerAllocated = totalRatePerUnit * ownerUnits;
+                }
+
+                const balanceDue = Math.max(0, ownerAllocated - ownerPaid);
+
+                return (
+                  <tr key={owner.id}>
+                    <td className="py-2 font-medium">
+                      {owner.flatNumber || "Owner Unit"}
+                    </td>
+                    <td className="py-2">{owner.name || owner.email}</td>
+                    <td className="py-2 text-center">{ownerUnits}</td>
+                    <td className="py-2 text-right font-semibold">
+                      ${ownerAllocated.toFixed(2)}
+                    </td>
+                    <td className="py-2 text-right text-green-700">
+                      ${ownerPaid.toFixed(2)}
+                    </td>
+                    <td className="py-2 text-right font-bold">
+                      ${balanceDue.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -149,8 +212,9 @@ export default function StatementPrint({
         {/* Footer */}
         <div className="mt-12 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
           <p>
-            Please clear your monthly utility share via Stripe online checkout
-            or direct handover to the building admin.
+            Dues are calculated proportionally: (Total Bill ÷ Total Building
+            Units) × Owner Units. Please clear any remaining balance via Stripe
+            checkout or building admin verification.
           </p>
         </div>
       </div>

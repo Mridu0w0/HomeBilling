@@ -19,47 +19,64 @@ import { motion } from "framer-motion";
 
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 export default function BillsPage() {
   const { user } = useAuth();
 
-  // 1. Initialize with an empty string or a static default like "November"
+  // 1. Safe static defaults for SSR pre-rendering (prevents Next.js new Date() error)
+  const [billTitle, setBillTitle] = useState("");
+  const [billMonth, setBillMonth] = useState("January");
+  const [billYear, setBillYear] = useState("2026");
+  const [availableYears, setAvailableYears] = useState([
+    "2025",
+    "2026",
+    "2027",
+    "2028",
+    "2029",
+  ]);
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [sector, setSector] = useState("Electricity");
+  const [totalAmount, setTotalAmount] = useState("");
+  const [totalUnits, setTotalUnits] = useState("");
 
-  // 2. Set the dynamic date on the client side after hydration
+  // 2. Sync to live system Month & Year on the client after hydration
   useEffect(() => {
-    const currentMonthName = new Date().toLocaleString("default", {
-      month: "long",
-    });
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedMonth(currentMonthName);
-  }, []);
+    const now = new Date();
+    const currentMonthName = MONTHS[now.getMonth()];
+    const currentYear = now.getFullYear();
 
-  const MONTHS = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBillMonth(currentMonthName);
+    setSelectedMonth(currentMonthName);
+    setBillYear(String(currentYear));
+    setAvailableYears(
+      Array.from({ length: 5 }, (_, i) => String(currentYear - 1 + i)),
+    );
+  }, []);
 
   // Modal / Interaction states
   const [viewingReceipt, setViewingReceipt] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // Form states
-  const [billTitle, setBillTitle] = useState("");
-  const [sector, setSector] = useState("Electricity");
-  const [totalAmount, setTotalAmount] = useState("");
-  const [totalUnits, setTotalUnits] = useState("");
+  // Filter & Collapse States for Saved Bills History
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sectorFilter, setSectorFilter] = useState("All");
+  const [expandedBillIds, setExpandedBillIds] = useState({});
 
   // Data states
   const [owners, setOwners] = useState([]);
@@ -218,10 +235,41 @@ export default function BillsPage() {
     try {
       await deleteDoc(doc(db, "bills", deletingId));
       setDeletingId(null);
+      window.location.reload();
     } catch (error) {
       console.error("Error deleting item:", error);
     }
   };
+
+  const toggleBillExpand = (billId) => {
+    setExpandedBillIds((prev) => ({
+      ...prev,
+      [billId]: !prev[billId],
+    }));
+  };
+
+  const expandAll = (billsList) => {
+    const allOpen = {};
+    billsList.forEach((b) => (allOpen[b.id] = true));
+    setExpandedBillIds(allOpen);
+  };
+
+  const collapseAll = () => {
+    setExpandedBillIds({});
+  };
+
+  const filteredBills = bills.filter((bill) => {
+    const periodLabel =
+      bill.billingPeriod || `${bill.month || ""} ${bill.year || ""}`.trim();
+    const matchesSector =
+      sectorFilter === "All" || bill.sector === sectorFilter;
+    const matchesSearch =
+      !searchQuery.trim() ||
+      bill.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bill.sector?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      periodLabel.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSector && matchesSearch;
+  });
 
   // Unit Calculation Math
   const numericTotalBill = parseFloat(totalAmount) || 0;
@@ -253,9 +301,12 @@ export default function BillsPage() {
         shareAmount: Number((costPerUnit * owner.units).toFixed(2)),
         status: "unpaid",
       }));
-
+      const billingPeriod = `${billMonth} ${billYear}`;
       const newBill = {
-        title: billTitle,
+        title: billTitle.trim(),
+        month: billMonth, // "January"
+        year: Number(billYear), // 2027
+        billingPeriod, // "January 2027" (prevents year collision)
         sector,
         totalAmount: numericTotalBill,
         totalUnits: numericTotalUnits,
@@ -279,17 +330,9 @@ export default function BillsPage() {
 
   return (
     <div className="text-zinc-100 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-1">
-          Manage & Split Bills
-        </h1>
-        <p className="text-zinc-400">
-          Calculate owner dues proportionally based on total building units.
-        </p>
-      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Manage Bills</h1>
+          <h1 className="text-4xl font-bold text-white">Manage Bills</h1>
           <p className="text-sm text-zinc-400">
             View and edit your monthly building expenses.
           </p>
@@ -395,7 +438,7 @@ export default function BillsPage() {
                         </td>
 
                         <td className="py-2.5 font-semibold text-zinc-100">
-                          ৳{" "}
+                          ${" "}
                           {item.totalAmount?.toLocaleString() ||
                             item.amount?.toLocaleString()}
                         </td>
@@ -502,7 +545,7 @@ export default function BillsPage() {
 
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Amount (৳)
+                  Amount ($)
                 </label>
                 <input
                   type="number"
@@ -514,18 +557,40 @@ export default function BillsPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Billing Month
-                </label>
-                <input
-                  type="text"
-                  value={editForm.month}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, month: e.target.value })
-                  }
-                  className="w-full bg-[#121212] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                    Billing Month
+                  </label>
+                  <select
+                    value={billMonth}
+                    onChange={(e) => setBillMonth(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  >
+                    {MONTHS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                    Billing Year
+                  </label>
+                  <select
+                    value={billYear}
+                    onChange={(e) => setBillYear(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  >
+                    {availableYears.map((yr) => (
+                      <option key={yr} value={yr}>
+                        {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -586,7 +651,7 @@ export default function BillsPage() {
                   {viewingReceipt.sector || viewingReceipt.category} Receipt
                 </h3>
                 <p className="text-sm text-zinc-400 mt-1">
-                  {viewingReceipt.title || selectedMonth} • Total: ৳{" "}
+                  {viewingReceipt.title || selectedMonth} • Total: ${" "}
                   {viewingReceipt.totalAmount?.toLocaleString() ||
                     viewingReceipt.amount?.toLocaleString()}
                 </p>
@@ -653,16 +718,53 @@ export default function BillsPage() {
 
           <div>
             <label className="block text-xs font-medium text-zinc-300 mb-1">
-              Bill Title / Month
+              Bill Title / Description
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. October Maintenance & Water"
+              placeholder="e.g. Generator Fuel & Elevator Maintenance"
               value={billTitle}
               onChange={(e) => setBillTitle(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-sm text-white"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
+          </div>
+
+          {/* Separate Month & Year Dropdowns */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                Billing Month
+              </label>
+              <select
+                value={billMonth}
+                onChange={(e) => setBillMonth(e.target.value)}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              >
+                {MONTHS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                Billing Year
+              </label>
+              <select
+                value={billYear}
+                onChange={(e) => setBillYear(e.target.value)}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -837,53 +939,166 @@ export default function BillsPage() {
       </div>
 
       {/* Saved Bills History */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-        <h2 className="text-lg font-semibold text-white mb-4">
-          Published Building Bills
-        </h2>
-        {bills.length === 0 ? (
-          <p className="text-sm text-zinc-500">No bills created yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {bills.map((bill) => (
-              <div
-                key={bill.id}
-                className="p-4 rounded-lg bg-zinc-950 border border-zinc-800"
-              >
-                <div className="flex flex-wrap justify-between items-center border-b border-zinc-800 pb-3 mb-3">
-                  <div>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 mr-2">
-                      {bill.sector}
-                    </span>
-                    <span className=" font-semibold text-white">
-                      {bill.title}
-                    </span>
-                  </div>
-                  <div className="text-sm text-zinc-300">
-                    Total:{" "}
-                    <strong className="text-white">${bill.totalAmount}</strong>{" "}
-                    ({bill.totalUnits} units @ ${bill.costPerUnit}/unit)
-                  </div>
-                </div>
+      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">
+              Published Building Bills
+            </h2>
+            <p className="text-xs text-zinc-400">
+              Showing {filteredBills.length} of {bills.length} bills • Click any
+              bill to view unit splits
+            </p>
+          </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {bill.splits?.map((split, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-center text-xs bg-zinc-900 px-3 py-2 rounded border border-zinc-800/80"
-                    >
-                      <span>
-                        <strong className="text-zinc-200">{split.name}</strong>{" "}
-                        ({split.units}u)
+          {/* Search, Sector Filter & Expand/Collapse Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search title or month..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
+            />
+
+            <select
+              value={sectorFilter}
+              onChange={(e) => setSectorFilter(e.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="All">All Sectors</option>
+              <option value="Electricity">Electricity</option>
+              <option value="Water">Water</option>
+              <option value="Security">Security</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Cleaning">Cleaning</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() =>
+                Object.keys(expandedBillIds).length > 0
+                  ? collapseAll()
+                  : expandAll(filteredBills)
+              }
+              className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+            >
+              {Object.keys(expandedBillIds).length > 0
+                ? "Minimize All"
+                : "Expand All"}
+            </button>
+          </div>
+        </div>
+
+        {filteredBills.length === 0 ? (
+          <p className="text-sm text-zinc-500 py-4 text-center">
+            No matching bills found.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {filteredBills.map((bill) => {
+              const isExpanded = !!expandedBillIds[bill.id];
+              const paidCount =
+                bill.splits?.filter((s) => s.status === "paid").length || 0;
+              const totalSplits = bill.splits?.length || 0;
+
+              return (
+                <div
+                  key={bill.id}
+                  className="rounded-lg bg-zinc-950 border border-zinc-800 overflow-hidden transition-colors hover:border-zinc-700"
+                >
+                  {/* Clickable Header Row (Always Visible) */}
+                  <button
+                    type="button"
+                    onClick={() => toggleBillExpand(bill.id)}
+                    className="w-full flex flex-wrap justify-between items-center p-4 text-left hover:bg-zinc-900/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <svg
+                        className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${
+                          isExpanded ? "rotate-90 text-blue-400" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                        {bill.sector}
                       </span>
-                      <span className="font-semibold text-emerald-400">
-                        ${split.shareAmount.toFixed(2)}
+                      {(bill.billingPeriod || bill.month) && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                          {bill.billingPeriod ||
+                            `${bill.month} ${bill.year || ""}`}
+                        </span>
+                      )}
+                      <span className="font-semibold text-white text-sm">
+                        {bill.title}
                       </span>
                     </div>
-                  ))}
+
+                    <div className="flex items-center gap-4 text-xs sm:text-sm text-zinc-300 mt-2 sm:mt-0">
+                      <span className="text-xs text-zinc-500">
+                        {paidCount}/{totalSplits} paid
+                      </span>
+                      <div>
+                        Total:{" "}
+                        <strong className="text-white">
+                          ${bill.totalAmount}
+                        </strong>{" "}
+                        <span className="text-xs text-zinc-400">
+                          ({bill.totalUnits}u @ ${bill.costPerUnit}/u)
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Collapsible Owner Splits Drawer */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-3 border-t border-zinc-800/80 bg-zinc-950/60">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {bill.splits?.map((split, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center text-xs bg-zinc-900 px-3 py-2 rounded border border-zinc-800/80"
+                          >
+                            <span>
+                              <strong className="text-zinc-200">
+                                {split.name}
+                              </strong>{" "}
+                              <span className="text-zinc-400">
+                                ({split.units}u)
+                              </span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-emerald-400">
+                                ${Number(split.shareAmount).toFixed(2)}
+                              </span>
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  split.status === "paid"
+                                    ? "bg-emerald-500"
+                                    : "bg-amber-500"
+                                }`}
+                                title={
+                                  split.status === "paid" ? "Paid" : "Pending"
+                                }
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

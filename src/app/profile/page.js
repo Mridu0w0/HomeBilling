@@ -207,7 +207,7 @@ export default function ProfilePage() {
                       <span>
                         Amount:{" "}
                         <strong className="text-zinc-200">
-                          ৳ {item.amount?.toLocaleString()}
+                          $ {item.amount?.toLocaleString()}
                         </strong>
                       </span>
                       <span

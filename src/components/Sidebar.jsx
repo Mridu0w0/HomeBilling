@@ -1,4 +1,3 @@
-// src/components/Sidebar.js
 "use client";
 
 import Link from "next/link";
@@ -17,8 +16,8 @@ export default function Sidebar() {
   const navItems = [
     { name: "Overview", path: "/dashboard" },
     { name: "Manage Bills", path: "/dashboard/bills" },
-    { name: "Payments", path: "/dashboard/payments" },
     { name: "Custom Payments", path: "/dashboard/customPayments" },
+    { name: "Payment Verification", path: "/dashboard/payments" },
     { name: "Settings", path: "/dashboard/settings" },
   ];
 

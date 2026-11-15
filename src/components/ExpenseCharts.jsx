@@ -65,7 +65,7 @@ export default function ExpenseCharts({ expenses, totalAmount }) {
         <span className="text-xs font-medium text-zinc-400">
           Grand Total:{" "}
           <strong className="text-white">
-            ৳ {totalAmount.toLocaleString()}
+            $ {totalAmount.toLocaleString()}
           </strong>
         </span>
       </div>
@@ -74,7 +74,7 @@ export default function ExpenseCharts({ expenses, totalAmount }) {
         {/* Sector Cost Comparison Bar Chart */}
         <div className="h-64 w-full">
           <p className="text-xs font-medium text-zinc-400 mb-2">
-            Sector Spending Comparison (৳)
+            Sector Spending Comparison ($)
           </p>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -97,13 +97,13 @@ export default function ExpenseCharts({ expenses, totalAmount }) {
               <YAxis stroke="#71717a" fontSize={10} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#18181b",
+                  backgroundColor: "#fff",
                   border: "1px solid #3f3f46",
                   borderRadius: "8px",
                   fontSize: "12px",
-                  color: "#fff",
+                  color: "#181818",
                 }}
-                formatter={(val) => [`৳ ${val.toLocaleString()}`, "Cost"]}
+                formatter={(val) => [`$ ${val.toLocaleString()}`, "Cost"]}
               />
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 {categoryData.map((entry, index) => (
@@ -130,7 +130,7 @@ export default function ExpenseCharts({ expenses, totalAmount }) {
                   color: "#fff",
                 }}
                 formatter={(val) => [
-                  `৳ ${val.toLocaleString()} (${((val / totalAmount) * 100).toFixed(1)}%)`,
+                  `$ ${val.toLocaleString()} (${((val / totalAmount) * 100).toFixed(1)}%)`,
                   "Total",
                 ]}
               />

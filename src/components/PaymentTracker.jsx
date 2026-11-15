@@ -204,7 +204,7 @@ export default function PaymentTracker({
         </div>
         <span className="text-xs text-zinc-400">
           Target Share:{" "}
-          <strong className="text-emerald-400">৳ {sharePerOwner}</strong> / flat
+          <strong className="text-emerald-400">$ {sharePerOwner}</strong> / flat
         </span>
       </div>
 
@@ -262,7 +262,7 @@ export default function PaymentTracker({
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-2.5">
                   <span className="font-semibold text-zinc-200">
-                    ৳ {sharePerOwner}
+                    $ {sharePerOwner}
                   </span>
 
                   <div className="flex items-center gap-1.5">

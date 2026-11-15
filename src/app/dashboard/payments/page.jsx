@@ -171,11 +171,19 @@ function PaymentsContent() {
                 onChange={(e) => setSelectedBillId(e.target.value)}
                 className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
               >
-                {bills.map((bill) => (
-                  <option key={bill.id} value={bill.id}>
-                    {bill.title} ({bill.sector}) - ৳{bill.totalAmount}
-                  </option>
-                ))}
+                {bills.map((bill) => {
+                  const period =
+                    bill.billingPeriod ||
+                    (bill.month && bill.year
+                      ? `${bill.month} ${bill.year}`
+                      : "");
+                  return (
+                    <option key={bill.id} value={bill.id}>
+                      {period ? `[${period}] ` : ""}
+                      {bill.title} ({bill.sector}) - ${bill.totalAmount}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -183,7 +191,7 @@ function PaymentsContent() {
               <div className="text-right">
                 <p className="text-xs text-zinc-400">Total Bill Rate</p>
                 <p className="text-lg font-bold text-white">
-                  ৳{selectedBill.costPerUnit.toFixed(2)}{" "}
+                  ${selectedBill.costPerUnit.toFixed(2)}{" "}
                   <span className="text-sm font-normal text-zinc-500">
                     / unit
                   </span>
@@ -203,7 +211,6 @@ function PaymentsContent() {
                     <th className="px-6 py-4 font-medium text-center">
                       Status
                     </th>
-                    <th className="px-6 py-4 font-medium text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/50">
@@ -234,7 +241,7 @@ function PaymentsContent() {
                           {split.units}
                         </td>
                         <td className="px-6 py-4 text-right font-bold text-emerald-400">
-                          ৳{split.shareAmount.toFixed(2)}
+                          ${split.shareAmount.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span
@@ -247,7 +254,7 @@ function PaymentsContent() {
                             {isPaid ? "Paid" : "Pending"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        {/* <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             {isAdmin ? (
                               <button
@@ -278,7 +285,7 @@ function PaymentsContent() {
                               </button>
                             )}
                           </div>
-                        </td>
+                        </td> */}
                       </tr>
                     );
                   })}

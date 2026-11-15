@@ -106,131 +106,153 @@ export default function CustomPaymentsPage() {
           </p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl flex items-center justify-between">
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">
-              Select Billing Period
-            </label>
-            <select
-              value={selectedBillId}
-              onChange={(e) => setSelectedBillId(e.target.value)}
-              className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-            >
-              {bills.map((bill) => (
-                <option key={bill.id} value={bill.id}>
-                  {bill.title} - ৳{bill.totalAmount}
-                </option>
-              ))}
-            </select>
+        {bills?.length === 0 ? (
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl text-zinc-400">
+            No bills have been created yet.
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">
+                  Select Billing Period
+                </label>
+                <select
+                  value={selectedBillId}
+                  onChange={(e) => setSelectedBillId(e.target.value)}
+                  className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                >
+                  {bills.map((bill) => {
+                    const period =
+                      bill.billingPeriod ||
+                      (bill.month && bill.year
+                        ? `${bill.month} ${bill.year}`
+                        : "");
+                    return (
+                      <option key={bill.id} value={bill.id}>
+                        {period ? `[${period}] ` : ""}
+                        {bill.title} ({bill.sector}) - ${bill.totalAmount}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
 
-        {selectedBill && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mt-6 shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-zinc-950/50 border-b border-zinc-800 text-zinc-400">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Owner</th>
-                  <th className="px-6 py-4 font-medium text-right">
-                    Billed Amount
-                  </th>
-                  <th className="px-6 py-4 font-medium text-right">
-                    Paid Amount
-                  </th>
-                  <th className="px-6 py-4 font-medium text-right w-48">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/50">
-                {selectedBill.splits.map((split, index) => {
-                  // Fallback to legacy logic if paidAmount hasn't been set yet
-                  const currentPaidAmount =
-                    split.paidAmount !== undefined
-                      ? split.paidAmount
-                      : split.status === "paid"
-                        ? split.shareAmount
-                        : 0;
-
-                  const isOverpaid = currentPaidAmount > split.shareAmount;
-                  const isUnderpaid = currentPaidAmount < split.shareAmount;
-
-                  return (
-                    <tr
-                      key={split.uid || index}
-                      className="hover:bg-zinc-800/30 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-white">{split.name}</p>
-                        <p className="text-xs text-zinc-500">
-                          Unit: {split.flatNumber}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 text-right text-zinc-300 font-medium">
-                        ৳{split.shareAmount.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {editingIndex === index ? (
-                          <div className="flex justify-end">
-                            <input
-                              type="number"
-                              value={manualAmount}
-                              onChange={(e) => setManualAmount(e.target.value)}
-                              className="w-28 bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-white text-right focus:outline-none focus:border-blue-500"
-                              placeholder="0.00"
-                              autoFocus
-                            />
-                          </div>
-                        ) : (
-                          <span
-                            className={`font-bold ${
-                              isOverpaid
-                                ? "text-emerald-400"
-                                : isUnderpaid
-                                  ? "text-amber-400"
-                                  : "text-zinc-200"
-                            }`}
-                          >
-                            ৳{currentPaidAmount.toFixed(2)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {isAdmin &&
-                          (editingIndex === index ? (
-                            <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => setEditingIndex(null)}
-                                className="text-xs text-zinc-400 hover:text-white px-2 py-1.5"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => handleSaveManualPayment(index)}
-                                disabled={updating}
-                                className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-500 disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setEditingIndex(index);
-                                setManualAmount(currentPaidAmount);
-                              }}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-                            >
-                              Update Payment
-                            </button>
-                          ))}
-                      </td>
+            {selectedBill && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mt-6 shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-zinc-950/50 border-b border-zinc-800 text-zinc-400">
+                    <tr>
+                      <th className="px-6 py-4 font-medium">Owner</th>
+                      <th className="px-6 py-4 font-medium text-right">
+                        Billed Amount
+                      </th>
+                      <th className="px-6 py-4 font-medium text-right">
+                        Paid Amount
+                      </th>
+                      <th className="px-6 py-4 font-medium text-right w-48">
+                        Action
+                      </th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/50">
+                    {selectedBill.splits.map((split, index) => {
+                      // Fallback to legacy logic if paidAmount hasn't been set yet
+                      const currentPaidAmount =
+                        split.paidAmount !== undefined
+                          ? split.paidAmount
+                          : split.status === "paid"
+                            ? split.shareAmount
+                            : 0;
+
+                      const isOverpaid = currentPaidAmount > split.shareAmount;
+                      const isUnderpaid = currentPaidAmount < split.shareAmount;
+
+                      return (
+                        <tr
+                          key={split.uid || index}
+                          className="hover:bg-zinc-800/30 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-white">
+                              {split.name}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Unit: {split.flatNumber}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4 text-right text-zinc-300 font-medium">
+                            ${split.shareAmount.toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {editingIndex === index ? (
+                              <div className="flex justify-end">
+                                <input
+                                  type="number"
+                                  value={manualAmount}
+                                  onChange={(e) =>
+                                    setManualAmount(e.target.value)
+                                  }
+                                  className="w-28 bg-zinc-800 border border-zinc-600 rounded px-2 py-1.5 text-white text-right focus:outline-none focus:border-blue-500"
+                                  placeholder="0.00"
+                                  autoFocus
+                                />
+                              </div>
+                            ) : (
+                              <span
+                                className={`font-bold ${
+                                  isOverpaid
+                                    ? "text-emerald-400"
+                                    : isUnderpaid
+                                      ? "text-amber-400"
+                                      : "text-zinc-200"
+                                }`}
+                              >
+                                ${currentPaidAmount.toFixed(2)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {isAdmin &&
+                              (editingIndex === index ? (
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => setEditingIndex(null)}
+                                    className="text-xs text-zinc-400 hover:text-white px-2 py-1.5"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleSaveManualPayment(index)
+                                    }
+                                    disabled={updating}
+                                    className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-500 disabled:opacity-50"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingIndex(index);
+                                    setManualAmount(currentPaidAmount);
+                                  }}
+                                  className="px-3 py-1.5 rounded text-xs font-medium border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+                                >
+                                  Update Payment
+                                </button>
+                              ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 

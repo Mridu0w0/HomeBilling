@@ -3,83 +3,37 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import {
   collection,
-  addDoc,
   getDocs,
   onSnapshot,
   query,
-  where,
   orderBy,
-  serverTimestamp,
-  deleteDoc,
-  updateDoc,
-  doc,
 } from "firebase/firestore";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import RecurringManager from "@/components/RecurringManager";
-import PaymentTracker from "@/components/PaymentTracker";
 import StatementPrint from "@/components/StatementPrint";
 import ExpenseCharts from "@/components/ExpenseCharts";
-import Image from "next/image";
 
 const BILLING_CATEGORIES = [
   "Electricity",
-  "Water & Sewerage",
-  "Gas",
-  "Lift Maintenance",
-  "Caretaker & Security",
-  "Waste Management",
-  "Cleaning & Janitorial",
-  "Repairs & Miscellaneous",
-];
-
-const DEFAULT_MONTHS = [
-  "October 2026",
-  "September 2026",
-  "August 2026",
-  "July 2026",
+  "Water",
+  "Security",
+  "Maintenance",
+  "Cleaning",
 ];
 
 export default function DashboardPage() {
   const { user, userData, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [expenses, setExpenses] = useState([]);
+  const [bills, setBills] = useState([]);
   const [owners, setOwners] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
-  // Monthly Cycle Switcher State
-  const [availableMonths, setAvailableMonths] = useState(DEFAULT_MONTHS);
-  const [selectedMonth, setSelectedMonth] = useState("October 2026");
-  const [showNewMonthModal, setShowNewMonthModal] = useState(false);
-  const [newMonthInput, setNewMonthInput] = useState("");
-
-  // Create Form State
-  const [category, setCategory] = useState(BILLING_CATEGORIES[0]);
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [receiptUrl, setReceiptUrl] = useState("");
-  const [editReceiptUrl, setEditReceiptUrl] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
-
-  // Edit Modal State
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [editCategory, setEditCategory] = useState("");
-  const [editAmount, setEditAmount] = useState("");
-  const [editMonth, setEditMonth] = useState("");
-  const [editNote, setEditNote] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  // View Receipt Modal State
-  const [viewingReceipt, setViewingReceipt] = useState(null);
-
-  // Delete Modal State
-  const [deletingId, setDeletingId] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedBillTitle, setSelectedBillTitle] = useState("All Bills");
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -87,6 +41,7 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router]);
 
+  // 1. Fetch Registered Owners and their Unit counts
   useEffect(() => {
     async function fetchOwners() {
       try {
@@ -94,6 +49,7 @@ export default function DashboardPage() {
         const ownersList = querySnapshot.docs.map((docSnap) => ({
           id: docSnap.id,
           ...docSnap.data(),
+          units: Number(docSnap.data().units || 1),
         }));
         setOwners(ownersList);
       } catch (err) {
@@ -106,30 +62,11 @@ export default function DashboardPage() {
     }
   }, [user]);
 
+  // 2. Real-time Listener for Unit-Based Bills
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, "expenses"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const dbMonths = new Set(DEFAULT_MONTHS);
-      snapshot.docs.forEach((d) => {
-        const m = d.data().month;
-        if (m) dbMonths.add(m);
-      });
-      setAvailableMonths(Array.from(dbMonths));
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || !selectedMonth) return;
-
-    const q = query(
-      collection(db, "expenses"),
-      where("month", "==", selectedMonth),
-    );
-
+    const q = query(collection(db, "bills"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -137,181 +74,110 @@ export default function DashboardPage() {
           id: docSnap.id,
           ...docSnap.data(),
         }));
-        list.sort(
-          (a, b) =>
-            (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0),
-        );
-        setExpenses(list);
+        setBills(list);
+        setLoadingData(false);
       },
       (err) => {
-        console.error("Firestore snapshot error:", err);
+        console.error("Firestore bills snapshot error:", err);
+        setLoadingData(false);
       },
     );
 
     return () => unsubscribe();
-  }, [user, selectedMonth]);
+  }, [user]);
 
-  const handleFileUpload = async (e, isEdit = false) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Unique Bill Titles / Cycles for the Filter Dropdown
+  const availableCycles = [
+    "All Bills",
+    ...Array.from(
+      new Set(
+        bills
+          .map(
+            (b) =>
+              b.billingPeriod ||
+              (b.month && b.year ? `${b.month} ${b.year}` : b.title),
+          )
+          .filter(Boolean),
+      ),
+    ),
+  ];
+  const filteredBills =
+    selectedBillTitle === "All Bills"
+      ? bills
+      : bills.filter(
+          (b) =>
+            (b.billingPeriod ||
+              (b.month && b.year ? `${b.month} ${b.year}` : b.title)) ===
+            selectedBillTitle,
+        );
 
-    const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-    if (!apiKey) {
-      alert(
-        "No ImgBB API key found in .env.local. Please paste an image URL directly into the receipt field.",
-      );
-      return;
-    }
+  // Unit & Expense Calculations
+  const totalBuildingUnits =
+    owners.reduce((sum, o) => sum + (Number(o.units) || 1), 0) || 1;
 
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("image", file);
+  const currentUserUnits = Number(
+    userData?.units ||
+      owners.find((o) => o.id === user?.uid || o.uid === user?.uid)?.units ||
+      1,
+  );
 
-    try {
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (isEdit) {
-          setEditReceiptUrl(data.data.url);
-        } else {
-          setReceiptUrl(data.data.url);
-        }
-      } else {
-        alert("Image upload failed. Try pasting an image link directly.");
-      }
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Error uploading image.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleAddExpense = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError("Please enter a valid amount.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, "expenses"), {
-        category,
-        amount: parsedAmount,
-        month: selectedMonth,
-        note: note.trim(),
-        receiptUrl: receiptUrl.trim() || null,
-        isRecurring: false,
-        addedBy: user.email,
-        createdAt: serverTimestamp(),
-      });
-
-      setAmount("");
-      setNote("");
-      setReceiptUrl("");
-    } catch (err) {
-      setError("Failed to add expense. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCreateNewMonth = (e) => {
-    e.preventDefault();
-    const formatted = newMonthInput.trim();
-    if (!formatted) return;
-
-    if (!availableMonths.includes(formatted)) {
-      setAvailableMonths([formatted, ...availableMonths]);
-    }
-    setSelectedMonth(formatted);
-    setNewMonthInput("");
-    setShowNewMonthModal(false);
-  };
-
-  const openEditModal = (item) => {
-    setEditingExpense(item);
-    setEditCategory(item.category);
-    setEditAmount(item.amount.toString());
-    setEditMonth(item.month || selectedMonth);
-    setEditNote(item.note || "");
-    setEditReceiptUrl(item.receiptUrl || "");
-  };
-
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    if (!editingExpense) return;
-
-    const parsedAmount = parseFloat(editAmount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      alert("Please enter a valid amount.");
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      await updateDoc(doc(db, "expenses", editingExpense.id), {
-        category: editCategory,
-        amount: parsedAmount,
-        month: editMonth,
-        note: editNote.trim(),
-        receiptUrl: editReceiptUrl.trim() || null,
-        updatedAt: serverTimestamp(),
-      });
-      setEditingExpense(null);
-    } catch (err) {
-      console.error("Update error:", err);
-      alert("Failed to update expense.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const confirmDeleteExpense = async () => {
-    if (!deletingId) return;
-    setIsDeleting(true);
-    try {
-      await deleteDoc(doc(db, "expenses", deletingId));
-      setDeletingId(null);
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("Failed to delete bill.");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Calculations
-  const totalAmount = expenses.reduce(
-    (sum, item) => sum + (item.amount || 0),
+  const totalAmount = filteredBills.reduce(
+    (sum, bill) => sum + (Number(bill.totalAmount) || 0),
     0,
   );
-  const effectiveOwnerCount = Math.max(owners.length, 5);
-  const sharePerOwner =
-    effectiveOwnerCount > 0
-      ? (totalAmount / effectiveOwnerCount).toFixed(2)
-      : "0.00";
-  const sectorCount = new Set(expenses.map((e) => e.category)).size;
 
-  if (authLoading || !user) {
+  // Calculate the logged-in user's exact unit-based share across filtered bills
+  // Only count bills where the logged-in owner is actually included in `splits`
+  const myTotalShare = filteredBills.reduce((sum, bill) => {
+    const mySplit = bill.splits?.find((s) => s.uid === user?.uid);
+    return mySplit ? sum + (Number(mySplit.shareAmount) || 0) : sum;
+  }, 0);
+
+  // Calculate how much of the logged-in user's share is still unpaid
+  const myUnpaidShare = filteredBills.reduce((sum, bill) => {
+    const mySplit = bill.splits?.find((s) => s.uid === user?.uid);
+    if (mySplit && mySplit.status !== "paid") {
+      return sum + (Number(mySplit.shareAmount) || 0);
+    }
+    return sum;
+  }, 0);
+
+  // Calculate total collected across the building
+  const totalCollected = filteredBills.reduce((sum, bill) => {
+    const billPaid =
+      bill.splits
+        ?.filter((s) => s.status === "paid")
+        .reduce((sSum, s) => sSum + (Number(s.shareAmount) || 0), 0) || 0;
+    return sum + billPaid;
+  }, 0);
+
+  const averageRatePerUnit =
+    currentUserUnits > 0 ? myTotalShare / currentUserUnits : 0;
+
+  const sectorCount = new Set(filteredBills.map((b) => b.sector)).size;
+
+  // Map new `bills` structure to match `ExpenseCharts` and `StatementPrint` props
+  const formattedExpensesForComponents = filteredBills.map((b) => ({
+    id: b.id,
+    title: b.title,
+    category: b.sector || "Maintenance",
+    amount: Number(b.totalAmount) || 0,
+    month: b.title,
+    createdAt: b.createdAt,
+  }));
+
+  if (authLoading || !user || loadingData) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-zinc-400">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent mr-2"></div>
-        Loading dashboard...
+        Loading overview...
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-      {/* Top Banner with Dynamic Switcher */}
+    <div className="mx-auto max-w-6xl">
+      {/* Top Banner with Cycle Filter */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -319,49 +185,55 @@ export default function DashboardPage() {
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Building Expenses & Dues
+            Building Overview
           </h1>
           <p className="mt-1 text-xs text-zinc-400">
             Welcome,{" "}
             <span className="text-zinc-200 font-medium">
               {userData?.name || user.email}
             </span>{" "}
-            ({userData?.flatNumber || "Unit Pending"})
+            ({userData?.flatNumber || "Owner Unit"} •{" "}
+            <span className="text-blue-400 font-medium">
+              {currentUserUnits} {currentUserUnits === 1 ? "Unit" : "Units"}
+            </span>
+            )
           </p>
         </div>
 
-        {/* Dynamic Month Selector & Cycle Controls */}
+        {/* Dynamic Cycle Selector & Quick Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs shadow-inner">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="text-zinc-400">Viewing:</span>
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              value={selectedBillTitle}
+              onChange={(e) => setSelectedBillTitle(e.target.value)}
               className="bg-transparent font-semibold text-white focus:outline-none cursor-pointer"
             >
-              {availableMonths.map((m) => (
-                <option key={m} value={m} className="bg-zinc-900 text-white">
-                  {m}
+              {availableCycles.map((cycle) => (
+                <option
+                  key={cycle}
+                  value={cycle}
+                  className="bg-zinc-900 text-white"
+                >
+                  {cycle}
                 </option>
               ))}
             </select>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowNewMonthModal(true)}
+          <Link
+            href="/dashboard/bills"
             className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition-colors"
           >
-            + New Cycle
-          </button>
+            + Add Bill
+          </Link>
 
           <StatementPrint
-            selectedMonth={selectedMonth}
-            expenses={expenses}
+            selectedMonth={selectedBillTitle}
+            bills={filteredBills}
+            expenses={formattedExpensesForComponents}
             totalAmount={totalAmount}
-            effectiveOwnerCount={effectiveOwnerCount}
-            sharePerOwner={sharePerOwner}
             owners={owners}
           />
         </div>
@@ -374,28 +246,54 @@ export default function DashboardPage() {
         transition={{ delay: 0.1 }}
         className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
+        {/* Card 1: Total Building Expense */}
         <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm backdrop-blur-sm">
           <p className="text-xs font-medium text-zinc-400">
             Total Building Expense
           </p>
           <p className="mt-2 text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            ৳ {totalAmount.toLocaleString()}
+            $
+            {totalAmount.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
           <p className="mt-1 text-[11px] text-zinc-500">
-            {expenses.length} bills in {selectedMonth}
+            {filteredBills.length} published{" "}
+            {filteredBills.length === 1 ? "bill" : "bills"} • $
+            {totalCollected.toFixed(2)} collected
           </p>
         </div>
 
+        {/* Card 2: Logged-in Owner's Unit Share */}
         <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 shadow-sm backdrop-blur-sm">
-          <p className="text-xs font-medium text-blue-400">Share Per Owner</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-blue-400">
+              Your Unit Share ({currentUserUnits}u)
+            </p>
+            {myUnpaidShare > 0 ? (
+              <Link
+                href="/dashboard/payments"
+                className="text-[10px] font-semibold bg-blue-600 text-white px-2 py-0.5 rounded hover:bg-blue-500"
+              >
+                Pay Now
+              </Link>
+            ) : (
+              <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">
+                All Paid
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-2xl sm:text-3xl font-bold text-blue-400 tracking-tight">
-            ৳ {sharePerOwner}
+            ${myTotalShare.toFixed(2)}
           </p>
           <p className="mt-1 text-[11px] text-blue-300/70">
-            Split across {effectiveOwnerCount} owners
+            Rate: ${averageRatePerUnit.toFixed(2)} / unit • Unpaid: $
+            {myUnpaidShare.toFixed(2)}
           </p>
         </div>
 
+        {/* Card 3: Active Sectors */}
         <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm backdrop-blur-sm">
           <p className="text-xs font-medium text-zinc-400">
             Active Billing Sectors
@@ -404,29 +302,36 @@ export default function DashboardPage() {
             {sectorCount}
           </p>
           <p className="mt-1 text-[11px] text-zinc-500">
-            Out of {BILLING_CATEGORIES.length} available
+            Out of {BILLING_CATEGORIES.length} standard sectors
           </p>
         </div>
 
+        {/* Card 4: Registered Owners & Total Units */}
         <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm backdrop-blur-sm">
-          <p className="text-xs font-medium text-zinc-400">Registered Owners</p>
+          <p className="text-xs font-medium text-zinc-400">
+            Building Ownership
+          </p>
           <p className="mt-2 text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            {owners.length}
+            {owners.length}{" "}
+            <span className="text-base font-normal text-zinc-400">Owners</span>
           </p>
           <p className="mt-1 text-[11px] text-zinc-500">
-            Min. baseline 5 owners applied
+            {totalBuildingUnits} total units registered
           </p>
         </div>
       </motion.div>
 
       {/* Recharts Analytics Section */}
       <div className="mb-8">
-        <ExpenseCharts expenses={expenses} totalAmount={totalAmount} />
+        <ExpenseCharts
+          expenses={formattedExpensesForComponents}
+          totalAmount={totalAmount}
+        />
       </div>
 
       {/* Recurring Expenses Automation */}
       <div className="mb-8">
-        <RecurringManager currentMonth={selectedMonth} />
+        <RecurringManager currentMonth={selectedBillTitle} />
       </div>
     </div>
   );
