@@ -19,7 +19,7 @@ export const metadata = {
   title: "Home Billing & Expense Splitting",
   description: "Track shared utility and maintenance expenses",
   icons: {
-    icon: "/home.jpg",
+    icon: "/home.png",
   },
 };
 
