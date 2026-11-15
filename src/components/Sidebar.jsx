@@ -4,6 +4,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import {
+  LuLayoutDashboard,
+  LuReceiptText,
+  LuWalletCards,
+  LuShieldCheck,
+  LuSettings,
+  LuBuilding2,
+} from "react-icons/lu";
 
 export default function Sidebar({ isOpen = false, setIsOpen = () => {} }) {
   const pathname = usePathname();
@@ -16,11 +24,19 @@ export default function Sidebar({ isOpen = false, setIsOpen = () => {} }) {
   };
 
   const navItems = [
-    { name: "Overview", path: "/dashboard" },
-    { name: "Manage Bills", path: "/dashboard/bills" },
-    { name: "Custom Payments", path: "/dashboard/customPayments" },
-    { name: "Payment Verification", path: "/dashboard/payments" },
-    { name: "Settings", path: "/dashboard/settings" },
+    { name: "Overview", path: "/dashboard", icon: LuLayoutDashboard },
+    { name: "Manage Bills", path: "/dashboard/bills", icon: LuReceiptText },
+    {
+      name: "Custom Payments",
+      path: "/dashboard/customPayments",
+      icon: LuWalletCards,
+    },
+    {
+      name: "Payment Verification",
+      path: "/dashboard/payments",
+      icon: LuShieldCheck,
+    },
+    { name: "Settings", path: "/dashboard/settings", icon: LuSettings },
   ];
 
   return (
@@ -42,14 +58,34 @@ export default function Sidebar({ isOpen = false, setIsOpen = () => {} }) {
         <div>
           {/* Top Header inside Sidebar */}
           <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-white tracking-tight">
-                Building Menu
-              </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                {userData?.flatNumber || "Owner Unit"} •{" "}
-                {userData?.role === "admin" ? "Admin" : "Owner"}
-              </p>
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Gradient Icon Badge */}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-600/20 to-indigo-600/10 border border-blue-500/25 text-blue-400 shadow-inner">
+                <LuBuilding2 className="h-4 w-4" />
+              </div>
+
+              {/* Unit Info & Role Badge */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-zinc-100 truncate">
+                    {userData?.flatNumber || "Owner Unit"}
+                  </h2>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase border ${
+                      userData?.role === "admin"
+                        ? "bg-amber-500/10 text-amber-400 border-amber-500/25"
+                        : "bg-blue-500/10 text-blue-400 border-blue-500/25"
+                    }`}
+                  >
+                    {userData?.role === "admin" ? "Admin" : "Owner"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-500 truncate mt-0.5">
+                  {userData?.units || 1}{" "}
+                  {Number(userData?.units || 1) === 1 ? "Unit" : "Units"}{" "}
+                  Allocated
+                </p>
+              </div>
             </div>
 
             {/* Close Button inside Sidebar (Mobile only) */}
@@ -79,18 +115,24 @@ export default function Sidebar({ isOpen = false, setIsOpen = () => {} }) {
           <nav className="p-4 space-y-1.5">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.path}
                   href={item.path}
                   onClick={() => setIsOpen(false)}
-                  className={`block px-4 py-2.5 rounded-lg text-sm transition-colors ${
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
                     isActive
                       ? "bg-blue-600/15 text-blue-400 font-medium border border-blue-500/20"
                       : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
                   }`}
                 >
-                  {item.name}
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${
+                      isActive ? "text-blue-400" : "text-zinc-500"
+                    }`}
+                  />
+                  <span>{item.name}</span>
                 </Link>
               );
             })}
