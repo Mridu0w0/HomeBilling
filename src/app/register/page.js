@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 export default function RegisterPage() {
@@ -10,18 +11,20 @@ export default function RegisterPage() {
     name: "",
     email: "",
     flatNumber: "",
+    units: "1",
     password: "",
   });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, loading: authLoading, register, loginWithGoogle } = useAuth();
+  const router = useRouter();
 
-  // If already logged in, navigate straight to dashboard
+  // Only auto-redirect if the user was ALREADY logged in (NOT in the middle of submitting the form!)
   useEffect(() => {
-    if (!authLoading && user) {
-      window.location.assign("/dashboard");
+    if (!authLoading && user && !isSubmitting) {
+      router.replace("/dashboard");
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, isSubmitting, router]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -49,13 +52,16 @@ export default function RegisterPage() {
         formData.password,
         formData.name.trim(),
         formData.flatNumber.trim() || "Owner Unit",
+        Number(formData.units) || 1,
       );
 
+      // Now this only runs AFTER setDoc in register() has 100% finished!
       if (res?.user) {
-        window.location.assign("/dashboard");
+        router.replace("/dashboard");
       }
     } catch (err) {
       console.error("Registration failed:", err);
+      setIsSubmitting(false);
       if (err?.code === "auth/email-already-in-use") {
         setError(
           "This email address is already registered. Please sign in instead.",
@@ -69,18 +75,20 @@ export default function RegisterPage() {
           err?.message || "Failed to create account. Please check connection.",
         );
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleGoogleSignUp = async () => {
+    setError("");
+    setIsSubmitting(true);
     try {
       const result = await loginWithGoogle();
-      console.log("Logged in user:", result.user);
-      // e.g., navigate("/") or save user to MongoDB
-    } catch (error) {
-      console.error("Google sign-in error:", error.message);
+      if (result?.user) {
+        router.replace("/dashboard");
+      }
+    } catch (err) {
+      console.error("Google sign-in error:", err.message);
+      setIsSubmitting(false);
     }
   };
 
@@ -106,7 +114,8 @@ export default function RegisterPage() {
         <button
           type="button"
           onClick={handleGoogleSignUp}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99]"
+          disabled={isSubmitting}
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-zinc-700/80 active:scale-[0.99] disabled:opacity-50"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -170,19 +179,37 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-300">
-              Flat / Unit Number
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Flat 4B"
-              value={formData.flatNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, flatNumber: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-300">
+                Flat / Unit Number
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Flat 4B"
+                value={formData.flatNumber}
+                onChange={(e) =>
+                  setFormData({ ...formData, flatNumber: e.target.value })
+                }
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-300">
+                Units Owned
+              </label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={formData.units}
+                onChange={(e) =>
+                  setFormData({ ...formData, units: e.target.value })
+                }
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
           <div>

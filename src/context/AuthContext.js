@@ -1,11 +1,12 @@
 // src/context/AuthContext.js
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  updateProfile,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
@@ -24,6 +25,9 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Prevents onAuthStateChanged from overwriting custom registration fields
+  const isRegisteringRef = useRef(false);
+
   const syncProfile = async (firebaseUser) => {
     if (!firebaseUser) return null;
     try {
@@ -40,10 +44,11 @@ export const AuthProvider = ({ children }) => {
           name: firebaseUser.displayName || "Owner",
           email: firebaseUser.email,
           flatNumber: "Owner Unit",
+          units: 1,
           role: "owner",
           createdAt: new Date().toISOString(),
         };
-        await setDoc(userRef, defaultProfile);
+        await setDoc(userRef, defaultProfile, { merge: true });
         setUserData(defaultProfile);
         return defaultProfile;
       }
@@ -54,6 +59,7 @@ export const AuthProvider = ({ children }) => {
         name: firebaseUser.displayName || "Owner",
         email: firebaseUser.email,
         flatNumber: "Owner Unit",
+        units: 1,
         role: "owner",
       };
       setUserData(fallbackProfile);
@@ -65,7 +71,10 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        await syncProfile(currentUser);
+        // Skip auto-sync if register() is currently saving custom form fields
+        if (!isRegisteringRef.current) {
+          await syncProfile(currentUser);
+        }
       } else {
         setUserData(null);
       }
@@ -80,25 +89,37 @@ export const AuthProvider = ({ children }) => {
     password,
     name,
     flatNumber,
+    units = 1,
     role = "owner",
   ) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const profile = {
-      uid: cred.user.uid,
-      name,
-      email,
-      flatNumber: flatNumber || "Owner Unit",
-      role,
-      createdAt: new Date().toISOString(),
-    };
+    isRegisteringRef.current = true;
     try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Save name on Firebase Auth user object as well
+      await updateProfile(cred.user, {
+        displayName: name?.trim() || "Owner",
+      });
+
+      const profile = {
+        uid: cred.user.uid,
+        name: name?.trim() || "Owner",
+        email: cred.user.email,
+        flatNumber: flatNumber?.trim() || "Owner Unit",
+        units: Number(units) || 1,
+        role,
+        createdAt: new Date().toISOString(),
+      };
+
       await setDoc(doc(db, "users", cred.user.uid), profile);
       setUserData(profile);
+      return cred;
     } catch (err) {
-      console.warn("Could not save profile to firestore immediately:", err);
-      setUserData(profile);
+      console.warn("Registration error:", err);
+      throw err;
+    } finally {
+      isRegisteringRef.current = false;
     }
-    return cred;
   };
 
   const login = (email, password) => {
