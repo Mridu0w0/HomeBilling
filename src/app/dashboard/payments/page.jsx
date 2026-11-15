@@ -161,15 +161,15 @@ function PaymentsContent() {
         </div>
       ) : (
         <>
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl flex items-center justify-between mt-6">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">
+          <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6">
+            <div className="w-full sm:flex-1 min-w-0">
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
                 Select Billing Period
               </label>
               <select
                 value={selectedBillId}
                 onChange={(e) => setSelectedBillId(e.target.value)}
-                className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full sm:max-w-xs md:max-w-md max-w-full truncate rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-blue-500"
               >
                 {bills.map((bill) => {
                   const period =
@@ -178,7 +178,11 @@ function PaymentsContent() {
                       ? `${bill.month} ${bill.year}`
                       : "");
                   return (
-                    <option key={bill.id} value={bill.id}>
+                    <option
+                      key={bill.id}
+                      value={bill.id}
+                      className="bg-zinc-900 text-white"
+                    >
                       {period ? `[${period}] ` : ""}
                       {bill.title} ({bill.sector}) - ${bill.totalAmount}
                     </option>
@@ -188,11 +192,11 @@ function PaymentsContent() {
             </div>
 
             {selectedBill && (
-              <div className="text-right">
+              <div className="flex sm:block items-center justify-between border-t border-zinc-800/80 pt-3 sm:border-0 sm:pt-0 sm:text-right shrink-0">
                 <p className="text-xs text-zinc-400">Total Bill Rate</p>
-                <p className="text-lg font-bold text-white">
-                  ${selectedBill.costPerUnit.toFixed(2)}{" "}
-                  <span className="text-sm font-normal text-zinc-500">
+                <p className="text-base sm:text-lg font-bold text-white">
+                  ${Number(selectedBill.costPerUnit || 0).toFixed(2)}{" "}
+                  <span className="text-xs sm:text-sm font-normal text-zinc-500">
                     / unit
                   </span>
                 </p>

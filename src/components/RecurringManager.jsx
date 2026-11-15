@@ -409,68 +409,145 @@ export default function RecurringManager({ onBillsGenerated }) {
                 No recurring contracts configured yet.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-zinc-500">
-                      <th className="pb-2">Title</th>
-                      <th className="pb-2">Sector</th>
-                      <th className="pb-2">Total Bill</th>
-                      <th className="pb-2">Rate / Unit</th>
-                      <th className="pb-2">Last Synced</th>
-                      <th className="pb-2">Switch</th>
-                      <th className="pb-2 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/40">
-                    {templates.map((t) => {
-                      const ratePerUnit =
-                        totalUnits > 0 ? Number(t.amount) / totalUnits : 0;
-                      return (
-                        <tr key={t.id} className="hover:bg-zinc-800/20">
-                          <td className="py-2.5 font-medium text-zinc-200">
-                            {t.title}
-                          </td>
-                          <td className="py-2.5 text-zinc-400">
-                            {t.sector || t.category}
-                          </td>
-                          <td className="py-2.5 text-zinc-200 font-semibold">
-                            ${Number(t.amount).toLocaleString()}
-                          </td>
-                          <td className="py-2.5 text-emerald-400">
-                            ${ratePerUnit.toFixed(2)}/u
-                          </td>
-                          <td className="py-2.5 text-zinc-500">
-                            {t.lastGeneratedPeriod || "Not synced"}
-                          </td>
-                          <td className="py-2.5">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleActive(t)}
-                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                                t.isActive
-                                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                  : "bg-zinc-800 text-zinc-500 border border-zinc-700"
-                              }`}
-                            >
-                              {t.isActive ? "● Active" : "○ Paused"}
-                            </button>
-                          </td>
-                          <td className="py-2.5 text-right">
+              <>
+                <div className="space-y-3 md:hidden">
+                  {templates.map((t) => {
+                    const ratePerUnit =
+                      totalUnits > 0 ? Number(t.amount) / totalUnits : 0;
+                    return (
+                      <div
+                        key={t.id}
+                        className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-3.5 space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold text-zinc-100">
+                              {t.title}
+                            </p>
+                            <p className="text-[11px] text-zinc-400">
+                              {t.sector || t.category}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(t)}
+                            className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                              t.isActive
+                                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                : "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                            }`}
+                          >
+                            {t.isActive ? "● Active" : "○ Paused"}
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-zinc-800/80 pt-2 text-xs">
+                          <div>
+                            <span className="text-zinc-400">Total: </span>
+                            <span className="font-semibold text-zinc-200">
+                              ${Number(t.amount).toLocaleString()}
+                            </span>
+                            <span className="ml-2 text-emerald-400">
+                              (${ratePerUnit.toFixed(2)}/u)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] text-zinc-500">
+                              {t.lastGeneratedPeriod || "Not synced"}
+                            </span>
                             <button
                               type="button"
                               onClick={() => handleDeleteTemplate(t.id)}
-                              className="text-zinc-500 hover:text-red-400"
+                              className="text-xs font-medium text-zinc-500 hover:text-red-400"
                             >
                               Remove
                             </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="hidden md:block overflow-x-auto rounded-lg border border-zinc-800/80">
+                  <table className="w-full min-w-170 text-left text-xs">
+                    <thead className="bg-zinc-900/90">
+                      <tr className="border-b border-zinc-800 text-zinc-400">
+                        <th className="py-3 px-4 font-medium whitespace-nowrap">
+                          Title
+                        </th>
+                        <th className="py-3 px-4 font-medium whitespace-nowrap">
+                          Sector
+                        </th>
+                        <th className="py-3 px-4 font-medium whitespace-nowrap">
+                          Total Bill
+                        </th>
+                        <th className="py-3 px-4 font-medium whitespace-nowrap">
+                          Rate / Unit
+                        </th>
+                        <th className="py-3 px-4 font-medium whitespace-nowrap">
+                          Last Synced
+                        </th>
+                        <th className="py-3 px-4 font-medium whitespace-nowrap">
+                          Switch
+                        </th>
+                        <th className="py-3 px-4 font-medium text-right whitespace-nowrap">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50 bg-zinc-950/40">
+                      {templates.map((t) => {
+                        const ratePerUnit =
+                          totalUnits > 0 ? Number(t.amount) / totalUnits : 0;
+                        return (
+                          <tr
+                            key={t.id}
+                            className="hover:bg-zinc-800/30 transition-colors"
+                          >
+                            <td className="py-3 px-4 font-medium text-zinc-200 whitespace-nowrap">
+                              {t.title}
+                            </td>
+                            <td className="py-3 px-4 text-zinc-400 whitespace-nowrap">
+                              {t.sector || t.category}
+                            </td>
+                            <td className="py-3 px-4 text-zinc-200 font-semibold whitespace-nowrap">
+                              ${Number(t.amount).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4 text-emerald-400 font-medium whitespace-nowrap">
+                              ${ratePerUnit.toFixed(2)}/u
+                            </td>
+                            <td className="py-3 px-4 text-zinc-500 whitespace-nowrap">
+                              {t.lastGeneratedPeriod || "Not synced"}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleActive(t)}
+                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                                  t.isActive
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                                }`}
+                              >
+                                {t.isActive ? "● Active" : "○ Paused"}
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTemplate(t.id)}
+                                className="text-zinc-500 hover:text-red-400 transition-colors"
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

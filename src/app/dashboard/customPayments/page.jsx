@@ -113,14 +113,14 @@ export default function CustomPaymentsPage() {
         ) : (
           <>
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl flex items-center justify-between">
-              <div>
+              <div className="w-full sm:w-auto min-w-0">
                 <label className="block text-xs font-medium text-zinc-400 mb-1">
                   Select Billing Period
                 </label>
                 <select
                   value={selectedBillId}
                   onChange={(e) => setSelectedBillId(e.target.value)}
-                  className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full sm:max-w-xs md:max-w-md max-w-full truncate rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-blue-500"
                 >
                   {bills.map((bill) => {
                     const period =
@@ -129,7 +129,11 @@ export default function CustomPaymentsPage() {
                         ? `${bill.month} ${bill.year}`
                         : "");
                     return (
-                      <option key={bill.id} value={bill.id}>
+                      <option
+                        key={bill.id}
+                        value={bill.id}
+                        className="bg-zinc-900 text-white"
+                      >
                         {period ? `[${period}] ` : ""}
                         {bill.title} ({bill.sector}) - ${bill.totalAmount}
                       </option>

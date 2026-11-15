@@ -56,7 +56,7 @@ export default function Navbar() {
   const closeDropdown = () => setIsDropdownOpen(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
+    <header className="sticky  top-0 z-90 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         {/* Brand / Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">

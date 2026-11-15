@@ -17,6 +17,7 @@ import { motion } from "framer-motion";
 import RecurringManager from "@/components/RecurringManager";
 import StatementPrint from "@/components/StatementPrint";
 import ExpenseCharts from "@/components/ExpenseCharts";
+import MemberBalances from "@/components/MemberBalances";
 
 const BILLING_CATEGORIES = [
   "Electricity",
@@ -332,6 +333,10 @@ export default function DashboardPage() {
       {/* Recurring Expenses Automation */}
       <div className="mb-8">
         <RecurringManager currentMonth={selectedBillTitle} />
+      </div>
+
+      <div className="xl:col-span-1">
+        <MemberBalances />
       </div>
     </div>
   );
