@@ -239,7 +239,7 @@ export default function HomePage() {
 
       {/* Live Preview / Stats Banner */}
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900/90 to-zinc-950 p-8 text-center sm:p-12">
+        <div className="rounded-2xl border border-zinc-800 bg-linear-to-b from-zinc-900/90 to-zinc-950 p-8 text-center sm:p-12">
           <h3 className="text-xl font-bold text-white sm:text-2xl">
             Ready to streamline your building&apos;s monthly expenses?
           </h3>

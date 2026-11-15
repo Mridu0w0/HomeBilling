@@ -49,7 +49,7 @@ export default function StatementPrint({
       </button>
 
       {/* Hidden Statement Container (Only rendered when Print dialog opens) */}
-      <div className="hidden print:block fixed inset-0 bg-white text-black p-8 font-sans z-[9999]">
+      <div className="hidden print:block fixed inset-0 bg-white text-black p-8 font-sans z-9999">
         {/* Header */}
         <div className="border-b-2 border-black pb-4 mb-6 flex justify-between items-end">
           <div>

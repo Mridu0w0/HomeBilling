@@ -1,4 +1,4 @@
-# 🏠 HomeBilling — Shared Property Expense & Bill Splitting System
+# 🏠 HomeBilling : Shared Property Expense & Bill Splitting System
 
 A modern full-stack web application built to streamline shared building utility tracking, automated recurring contracts, transparent expense splitting among 5+ property owners, and digital payment tracking.
 

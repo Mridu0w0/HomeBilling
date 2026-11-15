@@ -112,7 +112,7 @@ export default function ProfilePage() {
               className="h-16 w-16 sm:h-18 sm:w-18 rounded-full object-cover ring-2 ring-blue-500/50"
             />
           ) : (
-            <div className="flex h-16 w-16 sm:h-18 sm:w-18 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-2xl font-bold text-white shadow-lg">
+            <div className="flex h-16 w-16 sm:h-18 sm:w-18 items-center justify-center rounded-full bg-linear-to-tr from-blue-600 to-indigo-600 text-2xl font-bold text-white shadow-lg">
               {userInitial}
             </div>
           )}
@@ -211,7 +211,7 @@ export default function ProfilePage() {
                         </strong>
                       </span>
                       <span
-                        className="truncate max-w-[120px] text-zinc-500"
+                        className="truncate max-w-30 text-zinc-500"
                         title={item.proofNote}
                       >
                         {item.proofNote ? `Ref: ${item.proofNote}` : "Standard"}

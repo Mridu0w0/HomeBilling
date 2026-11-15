@@ -114,12 +114,12 @@ export default function Navbar() {
                       className="h-6 w-6 rounded-full object-cover ring-1 ring-zinc-700"
                     />
                   ) : (
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-[11px] font-bold text-white shadow-inner">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-linear-to-tr from-blue-600 to-indigo-500 text-[11px] font-bold text-white shadow-inner">
                       {userInitial}
                     </div>
                   )}
 
-                  <span className="hidden sm:inline max-w-[100px] truncate text-zinc-200 text-[11px]">
+                  <span className="hidden sm:inline max-w-25 truncate text-zinc-200 text-[11px]">
                     {displayName}
                   </span>
                   <svg
